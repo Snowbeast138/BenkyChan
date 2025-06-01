@@ -11,24 +11,24 @@
   "dependencies": {
     "@firebase/auth": "^1.10.6",
     "@firebase/firestore": "^4.7.16",
-    "autoprefixer": "^10.4.21",
     "firebase": "^11.8.1",
     "firebase-admin": "^13.4.0",
     "next": "15.3.3",
     "next-intl": "^4.1.0",
-    "postcss": "^8.5.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.1.8",
     "@types/node": "^20",
     "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react-dom": "^19.1.5",
+    "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.3.3",
-    "tailwindcss": "^4.1.8",
+    "postcss": "^8.5.4",
     "typescript": "^5"
   }
 }

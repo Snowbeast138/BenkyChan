@@ -16,9 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className={inter.className}>
-        {children} {/* Esto es CRÍTICO - renderiza las páginas */}
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }

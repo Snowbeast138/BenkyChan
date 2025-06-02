@@ -12,6 +12,7 @@
     "@firebase/auth": "^1.10.6",
     "@firebase/firestore": "^4.7.16",
     "@heroicons/react": "^2.2.0",
+    "dotenv": "^16.5.0",
     "firebase": "^11.8.1",
     "next": "15.3.3",
     "react": "^19.0.0",

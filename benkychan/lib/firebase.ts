@@ -3,13 +3,13 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore"; // Importa Firestore
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA34L0GvY3LCQQ_dcbJN4rYBkB4FPBu4GQ",
-  authDomain: "benkychan-ebe0e.firebaseapp.com",
-  projectId: "benkychan-ebe0e",
-  storageBucket: "benkychan-ebe0e.firebasestorage.app",
-  messagingSenderId: "316939548060",
-  appId: "1:316939548060:web:8b10b1b5db475b890a4459",
-  measurementId: "G-41SF2PNNX8",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Inicializa Firebase

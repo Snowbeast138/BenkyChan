@@ -5,6 +5,14 @@ import Link from "next/link";
 import { getUserStats, getUserTopics } from "../lib/api";
 import { Topic, UserStats } from "../types";
 import { User } from "firebase/auth";
+import {
+  FiLogOut,
+  FiPlus,
+  FiCheck,
+  FiX,
+  FiAward,
+  FiBarChart2,
+} from "react-icons/fi";
 
 export default function Home() {
   const router = useRouter();
@@ -73,67 +81,89 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
       {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-blue-600">BenkyChan</h1>
-          <p className="text-gray-600">Aprende mediante trivias interactivas</p>
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600 text-white p-2 rounded-lg">
+            <FiAward className="text-2xl" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-blue-800">BenkyChan</h1>
+            <p className="text-gray-600">
+              Aprende mediante trivias interactivas
+            </p>
+          </div>
         </div>
         <button
           onClick={handleLogout}
-          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          className="flex items-center gap-2 bg-white text-red-500 px-4 py-2 rounded-lg hover:bg-red-50 border border-red-100 transition-colors"
         >
+          <FiLogOut />
           Cerrar Sesión
         </button>
       </header>
 
       {/* Main Content */}
-      <main className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
         {/* Topics Section */}
-        <div className="bg-white p-6 rounded-lg shadow-md lg:col-span-2">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Tus Temas de Estudio</h2>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">
+              Tus Temas de Estudio
+            </h2>
             <Link href="/add-topic">
-              <button className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                + Añadir Tema
+              <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                <FiPlus />
+                Añadir Tema
               </button>
             </Link>
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent"></div>
             </div>
           ) : topics.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">No tienes temas aún</p>
+            <div className="text-center py-12">
+              <div className="mx-auto w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                <FiPlus className="text-blue-600 text-3xl" />
+              </div>
+              <p className="text-gray-500 mb-6 text-lg">No tienes temas aún</p>
               <Link href="/add-topic">
-                <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
                   Añade tu primer tema
                 </button>
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {topics.map((topic) => (
                 <div
                   key={topic.id}
                   onClick={() => toggleTopicSelection(topic.id)}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                  className={`p-5 border rounded-xl cursor-pointer transition-all ${
                     selectedTopics.includes(topic.id)
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:bg-gray-50"
+                      ? "border-blue-500 bg-blue-50 shadow-blue-100 shadow-sm"
+                      : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
                   }`}
                 >
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-medium">{topic.name}</h3>
-                    <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                      {topic.questionCount} preguntas
-                    </span>
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-gray-800">
+                      {topic.name}
+                    </h3>
+                    {selectedTopics.includes(topic.id) && (
+                      <span className="bg-blue-500 text-white p-1 rounded-full">
+                        <FiCheck className="text-sm" />
+                      </span>
+                    )}
                   </div>
+                  <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-md mb-2">
+                    {topic.questionCount}{" "}
+                    {topic.questionCount === 1 ? "pregunta" : "preguntas"}
+                  </span>
                   {topic.lastPlayed && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 mt-2">
                       Jugado:{" "}
                       {new Date(
                         topic.lastPlayed instanceof Date
@@ -149,30 +179,40 @@ export default function Home() {
         </div>
 
         {/* Action Panel */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Crear Trivia</h2>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-6 h-fit">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+            Crear Trivia
+          </h2>
 
-          <div className="mb-6">
-            <h3 className="font-medium mb-2">Temas seleccionados:</h3>
+          <div className="mb-8">
+            <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <FiBarChart2 />
+              Temas seleccionados
+            </h3>
             {selectedTopics.length === 0 ? (
-              <p className="text-gray-500 text-sm">
-                Selecciona al menos un tema
-              </p>
+              <div className="bg-gray-50 rounded-lg p-4 text-center">
+                <p className="text-gray-500 text-sm">
+                  Selecciona al menos un tema de la lista
+                </p>
+              </div>
             ) : (
-              <ul className="space-y-1">
+              <ul className="space-y-2 max-h-60 overflow-y-auto pr-2">
                 {topics
                   .filter((t) => selectedTopics.includes(t.id))
                   .map((topic) => (
                     <li
                       key={topic.id}
-                      className="flex justify-between items-center"
+                      className="flex justify-between items-center bg-blue-50/50 rounded-lg px-3 py-2 border border-blue-100"
                     >
-                      <span>{topic.name}</span>
+                      <span className="text-gray-700">{topic.name}</span>
                       <button
-                        onClick={() => toggleTopicSelection(topic.id)}
-                        className="text-red-500 hover:text-red-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleTopicSelection(topic.id);
+                        }}
+                        className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"
                       >
-                        ×
+                        <FiX />
                       </button>
                     </li>
                   ))}
@@ -180,49 +220,76 @@ export default function Home() {
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 mb-8">
             <button
               onClick={startQuiz}
               disabled={selectedTopics.length === 0}
-              className={`w-full py-3 rounded ${
+              className={`w-full py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
                 selectedTopics.length === 0
-                  ? "bg-gray-300 cursor-not-allowed"
-                  : "bg-blue-500 hover:bg-blue-600 text-white"
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg"
               }`}
             >
-              Iniciar Trivia ({selectedTopics.length} temas)
+              <FiAward />
+              Iniciar Trivia ({selectedTopics.length}{" "}
+              {selectedTopics.length === 1 ? "tema" : "temas"})
             </button>
 
             <button
               onClick={mixAllTopics}
               disabled={topics.length === 0}
-              className={`w-full py-3 rounded ${
+              className={`w-full py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
                 topics.length === 0
-                  ? "bg-gray-300 cursor-not-allowed"
-                  : "bg-purple-500 hover:bg-purple-600 text-white"
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  : "bg-purple-600 hover:bg-purple-700 text-white shadow-md hover:shadow-lg"
               }`}
             >
+              <FiBarChart2 />
               Mezclar Todos los Temas
             </button>
           </div>
 
-          <div className="mt-8">
-            <h3 className="font-medium mb-2">Tu progreso</h3>
-            <div className="bg-gray-200 rounded-full h-4">
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-5 border border-gray-100">
+            <h3 className="font-semibold text-gray-800 mb-3">Tu progreso</h3>
+            <div className="mb-2 flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">
+                Completado
+              </span>
+              <span className="text-sm font-bold text-blue-600">
+                {userStats.progress}%
+              </span>
+            </div>
+            <div className="bg-gray-200 rounded-full h-3 mb-4">
               <div
-                className="bg-green-500 h-4 rounded-full"
+                className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full"
                 style={{ width: `${userStats.progress}%` }}
               ></div>
             </div>
-            <p className="text-sm text-gray-600 mt-1">
-              {userStats.progress}% de completado ({userStats.correctAnswers}/
-              {userStats.totalAnswers} respuestas correctas)
-            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white p-3 rounded-lg border border-gray-100">
+                <p className="text-xs text-gray-500">Respuestas</p>
+                <p className="font-bold text-gray-800">
+                  {userStats.correctAnswers}/{userStats.totalAnswers}
+                </p>
+              </div>
+              <div className="bg-white p-3 rounded-lg border border-gray-100">
+                <p className="text-xs text-gray-500">Precisión</p>
+                <p className="font-bold text-gray-800">
+                  {userStats.totalAnswers > 0
+                    ? Math.round(
+                        (userStats.correctAnswers / userStats.totalAnswers) *
+                          100
+                      )
+                    : 0}
+                  %
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </main>
 
-      <footer className="mt-12 text-center text-gray-500 text-sm">
+      <footer className="mt-12 text-center text-gray-500 text-sm pb-8">
         <p>BenkyChan - Aprende jugando © {new Date().getFullYear()}</p>
       </footer>
     </div>

@@ -134,7 +134,12 @@ export default function Home() {
                   </div>
                   {topic.lastPlayed && (
                     <p className="text-xs text-gray-500 mt-1">
-                      Jugado: {new Date(topic.lastPlayed).toLocaleDateString()}
+                      Jugado:{" "}
+                      {new Date(
+                        topic.lastPlayed instanceof Date
+                          ? topic.lastPlayed
+                          : topic.lastPlayed.toDate()
+                      ).toLocaleDateString()}
                     </p>
                   )}
                 </div>

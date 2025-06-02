@@ -3,128 +3,88 @@ import {
   collection,
   doc,
   getDocs,
+  getDoc,
   addDoc,
-  query,
-  where,
   updateDoc,
   arrayUnion,
-  getDoc,
-  DocumentData,
-  QueryDocumentSnapshot,
-  Timestamp,
+  query,
 } from "firebase/firestore";
 import { Topic, Question, UserStats } from "../types";
 
-// Helper para convertir documentos de Firestore
-const converter = <T>() => ({
-  toFirestore: (data: T) => {
-    // Convertir Dates a Timestamps
-    const convertedData: Record<string, unknown> = {
-      ...(data as Record<string, unknown>),
-    };
-    for (const key in convertedData) {
-      if (convertedData[key] instanceof Date) {
-        convertedData[key] = Timestamp.fromDate(convertedData[key]);
-      }
-    }
-    return convertedData;
-  },
-  fromFirestore: (snap: QueryDocumentSnapshot<DocumentData>) => {
-    const data = snap.data();
-    // Convertir Timestamps a Dates
-    for (const key in data) {
-      if (data[key] instanceof Timestamp) {
-        data[key] = data[key].toDate();
-      }
-    }
-    return data as T;
-  },
-});
-
-// Colecciones con conversores de tipo
-const topicsCollection = collection(db, "topics").withConverter(
-  converter<Topic>()
-);
-const statsCollection = collection(db, "stats").withConverter(
-  converter<UserStats>()
-);
-
 export const getUserTopics = async (userId: string): Promise<Topic[]> => {
-  const q = query(topicsCollection, where("userId", "==", userId));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      ...data,
-      id: doc.id,
-      // No necesitas llamar a toDate() aquí porque el converter ya lo hizo
-    };
-  });
+  const topicsSnapshot = await getDocs(
+    query(collection(db, "users", userId, "topics"))
+  );
+  return topicsSnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+    lastPlayed: doc.data().lastPlayed?.toDate(),
+    createdAt: doc.data().createdAt?.toDate(),
+  })) as Topic[];
 };
 
 export const addTopic = async (
   userId: string,
-  topicName: string
-): Promise<Topic> => {
-  const newTopic: Omit<Topic, "id"> = {
-    name: topicName,
-    userId,
-    createdAt: new Date(),
-    questionCount: 0,
-  };
-  const docRef = await addDoc(topicsCollection, newTopic);
-  return { id: docRef.id, ...newTopic };
+  topicData: Omit<Topic, "id">
+): Promise<void> => {
+  await addDoc(collection(db, "users", userId, "topics"), topicData);
 };
 
-export const generateQuestions = async (
-  topicId: string,
-  topicName: string,
-  count: number = 5
+export const getTopicQuestions = async (
+  userId: string,
+  topicId: string
 ): Promise<Question[]> => {
-  const response = await fetch("/api/generate-questions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      topic: topicName,
-      count,
-    }),
-  });
-
-  const questions: Question[] = await response.json();
-  const questionsWithDates = questions.map((q) => ({
-    ...q,
-    createdAt: new Date(),
-    topicId,
-  }));
-
-  const topicRef = doc(topicsCollection, topicId);
-  await updateDoc(topicRef, {
-    questions: arrayUnion(...questionsWithDates),
-    questionCount: questions.length,
-    lastPlayed: new Date(),
-  });
-
-  return questionsWithDates;
+  const questionsSnapshot = await getDocs(
+    collection(db, "users", userId, "topics", topicId, "questions")
+  );
+  return questionsSnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as Question[];
 };
 
 export const getUserStats = async (userId: string): Promise<UserStats> => {
-  const statsRef = doc(statsCollection, userId);
-  const snapshot = await getDoc(statsRef);
+  const statsDoc = await getDoc(doc(db, "users", userId, "stats", "progress"));
+  return statsDoc.exists()
+    ? (statsDoc.data() as UserStats)
+    : {
+        progress: 0,
+        quizzesTaken: [],
+        correctAnswers: [],
+        totalAnswers: [],
+      };
+};
 
-  if (!snapshot.exists()) {
-    const defaultStats: UserStats = {
-      progress: 0,
-      quizzesTaken: 0,
-      correctAnswers: 0,
-      totalAnswers: 0,
-    };
-    // Use setDoc to create the document if it doesn't exist
-    const { setDoc } = await import("firebase/firestore");
-    await setDoc(statsRef, defaultStats);
-    return defaultStats;
-  }
+export const updateUserStats = async (
+  userId: string,
+  correctAnswers: number,
+  totalAnswers: number
+): Promise<void> => {
+  const statsRef = doc(db, "users", userId, "stats", "progress");
+  await updateDoc(statsRef, {
+    quizzesTaken: arrayUnion(new Date()),
+    correctAnswers: arrayUnion(...Array(correctAnswers).fill(true)),
+    totalAnswers: arrayUnion(...Array(totalAnswers).fill(true)),
+    progress: calculateNewProgress(correctAnswers, totalAnswers),
+  });
+};
 
-  return snapshot.data();
+export const updateTopicStats = async (
+  userId: string,
+  topicId: string,
+  correctAnswers: number,
+  totalAnswers: number
+): Promise<void> => {
+  const topicRef = doc(db, "users", userId, "topics", topicId);
+  await updateDoc(topicRef, {
+    lastPlayed: new Date(),
+    questionCount: arrayUnion(...Array(totalAnswers).fill(null)), // Simulamos preguntas añadidas
+    correctAnswers: arrayUnion(...Array(correctAnswers).fill(true)),
+    totalAnswers: arrayUnion(...Array(totalAnswers).fill(true)),
+  });
+};
+
+const calculateNewProgress = (correct: number, total: number): number => {
+  // Lógica para calcular el nuevo progreso basado en respuestas correctas
+  return Math.min(100, Math.round((correct / total) * 100));
 };

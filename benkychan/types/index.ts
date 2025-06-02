@@ -3,11 +3,13 @@ import { Timestamp } from "firebase/firestore";
 export interface Topic {
   id: string;
   name: string;
-  userId: string;
-  createdAt: Timestamp | Date;
+  description?: string;
   questionCount: number;
-  lastPlayed?: Timestamp | Date;
-  questions?: Question[];
+  correctAnswers?: boolean[];
+  totalAnswers?: boolean[];
+  lastPlayed?: Date | Timestamp;
+  createdAt: Date | Timestamp;
+  category?: string;
 }
 
 export interface Question {
@@ -16,20 +18,12 @@ export interface Question {
   options: string[];
   correctAnswer: string;
   explanation?: string;
-  topicId: string;
-  createdAt: Timestamp | Date;
+  topicId?: string;
 }
 
 export interface UserStats {
   progress: number;
-  quizzesTaken: number;
-  lastPlayed?: Timestamp | Date;
-  correctAnswers: number;
-  totalAnswers: number;
-}
-
-export interface QuizParams {
-  topics: string[];
-  questionCount?: number;
-  difficulty?: "easy" | "medium" | "hard";
+  quizzesTaken: Date[] | Timestamp[];
+  correctAnswers: boolean[];
+  totalAnswers: boolean[];
 }

@@ -9,8 +9,9 @@ import {
   setDoc,
   arrayUnion,
   query,
+  Timestamp,
 } from "firebase/firestore";
-import { Topic, Question, UserStats } from "../types";
+import { Topic, Question, UserStats, QuizResult } from "../types";
 import { shuffleArray } from "./utils/quizUtils";
 
 // Cache para preguntas generadas
@@ -94,8 +95,8 @@ export const getUserStats = async (userId: string): Promise<UserStats> => {
       : {
           progress: 0,
           quizzesTaken: [],
-          correctAnswers: [],
-          totalAnswers: [],
+          correctAnswers: 0,
+          totalAnswers: 0,
         };
   } catch (error) {
     console.error("Error getting user stats:", error);
@@ -108,32 +109,30 @@ export const getUserStats = async (userId: string): Promise<UserStats> => {
  */
 export const updateUserStats = async (
   userId: string,
-  correctAnswers: number,
-  totalAnswers: number
+  quizResult: QuizResult
 ): Promise<void> => {
   try {
     const statsRef = doc(db, "users", userId, "stats", "progress");
     const statsDoc = await getDoc(statsRef);
 
-    const progress = calculateProgress(correctAnswers, totalAnswers);
-    const newCorrectAnswers = Array(correctAnswers).fill(true);
-    const newTotalAnswers = Array(totalAnswers).fill(true);
+    const progress = calculateProgress(
+      quizResult.correctAnswers,
+      quizResult.totalQuestions
+    );
+
+    const updateData = {
+      quizzesTaken: arrayUnion(quizResult),
+      progress: progress,
+      correctAnswers: quizResult.correctAnswers,
+      totalAnswers: quizResult.totalQuestions,
+    };
 
     if (statsDoc.exists()) {
-      // Documento existe, actualizarlo
-      await updateDoc(statsRef, {
-        quizzesTaken: arrayUnion(new Date()),
-        correctAnswers: arrayUnion(...newCorrectAnswers),
-        totalAnswers: arrayUnion(...newTotalAnswers),
-        progress: progress,
-      });
+      await updateDoc(statsRef, updateData);
     } else {
-      // Documento no existe, crearlo
       await setDoc(statsRef, {
-        quizzesTaken: [new Date()],
-        correctAnswers: newCorrectAnswers,
-        totalAnswers: newTotalAnswers,
-        progress: progress,
+        ...updateData,
+        quizzesTaken: [quizResult],
       });
     }
   } catch (error) {
@@ -148,34 +147,18 @@ export const updateUserStats = async (
 export const updateTopicStats = async (
   userId: string,
   topicId: string,
-  correctAnswers: number,
-  totalAnswers: number
+  quizResult: QuizResult
 ): Promise<void> => {
   try {
     const topicRef = doc(db, "users", userId, "topics", topicId);
-    const topicDoc = await getDoc(topicRef);
 
-    const newCorrectAnswers = Array(correctAnswers).fill(true);
-    const newTotalAnswers = Array(totalAnswers).fill(true);
+    const updateData = {
+      lastPlayed: Timestamp.now(),
+      lastScore: quizResult.score,
+      quizHistory: arrayUnion(quizResult),
+    };
 
-    if (topicDoc.exists()) {
-      await updateDoc(topicRef, {
-        lastPlayed: new Date(),
-        correctAnswers: arrayUnion(...newCorrectAnswers),
-        totalAnswers: arrayUnion(...newTotalAnswers),
-      });
-    } else {
-      // Esto no debería ocurrir si el tema existe, pero es buena práctica manejarlo
-      await setDoc(
-        topicRef,
-        {
-          lastPlayed: new Date(),
-          correctAnswers: newCorrectAnswers,
-          totalAnswers: newTotalAnswers,
-        },
-        { merge: true }
-      );
-    }
+    await updateDoc(topicRef, updateData);
   } catch (error) {
     console.error("Error updating topic stats:", error);
     throw new Error("Error al actualizar las estadísticas del tema");
@@ -187,9 +170,10 @@ export const updateTopicStats = async (
  */
 export const generateQuestionsWithDeepSeek = async (
   topic: string,
-  count: number = 5
+  count: number = 5,
+  difficulty: string = "medium"
 ): Promise<Question[]> => {
-  const cacheKey = `${topic}-${count}`;
+  const cacheKey = `${topic}-${count}-${difficulty}`;
   const now = Date.now();
 
   // Verificar cache
@@ -204,7 +188,7 @@ export const generateQuestionsWithDeepSeek = async (
   const RETRY_DELAY = 2000;
 
   console.log(
-    `[DeepSeek] Iniciando generación de ${count} preguntas sobre "${topic}"`
+    `[DeepSeek] Iniciando generación de ${count} preguntas sobre "${topic}" con dificultad ${difficulty}`
   );
 
   while (retryCount <= MAX_RETRIES) {
@@ -215,7 +199,11 @@ export const generateQuestionsWithDeepSeek = async (
       const response = await fetch("/api/generate-questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, count }),
+        body: JSON.stringify({
+          topic,
+          count,
+          difficulty, // Incluir la dificultad en la solicitud
+        }),
       });
 
       const endTime = Date.now();
@@ -243,6 +231,7 @@ export const generateQuestionsWithDeepSeek = async (
         options: string[];
         correctAnswer: string;
         explanation?: string;
+        difficulty?: string;
       };
 
       const questions: Question[] = data.map(
@@ -253,6 +242,7 @@ export const generateQuestionsWithDeepSeek = async (
           correctAnswer: q.correctAnswer,
           explanation: q.explanation || "",
           topicId: topic,
+          difficulty: q.difficulty || difficulty, // Asignar dificultad
         })
       );
 
@@ -284,42 +274,60 @@ export const generateQuestionsWithDeepSeek = async (
  */
 export const getQuizQuestions = async (
   topic: Topic,
-  count: number = 10
+  count: number = 10,
+  difficulty: string = "mixed"
 ): Promise<Question[]> => {
   try {
-    // 1. Primero intentar con DeepSeek
-    console.log(`Fetching ${count} questions for "${topic.name}"`);
-    const deepSeekQuestions = await generateQuestionsWithDeepSeek(
-      topic.name,
-      count
+    console.log(
+      `Fetching ${count} questions for "${topic.name}" with difficulty ${difficulty}`
     );
 
+    // 1. Primero intentar con DeepSeek
+    const deepSeekQuestions = await generateQuestionsWithDeepSeek(
+      topic.name,
+      count,
+      difficulty
+    );
+
+    // Filtrar por dificultad si no es "mixed"
+    let filteredQuestions = deepSeekQuestions;
+    if (difficulty !== "mixed") {
+      filteredQuestions = deepSeekQuestions.filter(
+        (q) => q.difficulty?.toLowerCase() === difficulty.toLowerCase()
+      );
+    }
+
     // Si obtenemos suficientes preguntas, devolverlas
-    if (deepSeekQuestions.length >= count) {
-      return shuffleArray(deepSeekQuestions.slice(0, count));
+    if (filteredQuestions.length >= count) {
+      return shuffleArray(filteredQuestions.slice(0, count));
     }
 
     // 2. Completar con OpenTriviaDB si es necesario
-    const remaining = count - deepSeekQuestions.length;
+    const remaining = count - filteredQuestions.length;
     if (remaining > 0) {
       console.log(
         `Fetching ${remaining} additional questions from OpenTriviaDB`
       );
       const triviaQuestions = await getOpenTriviaQuestions(
         remaining,
-        getTriviaCategory(topic.name)
+        getTriviaCategory(topic.name),
+        difficulty !== "mixed" ? difficulty : undefined
       );
-      return shuffleArray([...deepSeekQuestions, ...triviaQuestions]);
+      return shuffleArray([...filteredQuestions, ...triviaQuestions]);
     }
 
-    return shuffleArray(deepSeekQuestions);
+    return shuffleArray(filteredQuestions);
   } catch (error) {
     console.error(
       "Error getting questions, falling back to OpenTriviaDB:",
       error
     );
     // Fallback completo a OpenTriviaDB
-    return getOpenTriviaQuestions(count, getTriviaCategory(topic.name));
+    return getOpenTriviaQuestions(
+      count,
+      getTriviaCategory(topic.name),
+      difficulty !== "mixed" ? difficulty : undefined
+    );
   }
 };
 
@@ -328,12 +336,17 @@ export const getQuizQuestions = async (
  */
 export const getOpenTriviaQuestions = async (
   count: number,
-  category: number
+  category: number,
+  difficulty?: string
 ): Promise<Question[]> => {
   try {
-    const response = await fetch(
-      `https://opentdb.com/api.php?amount=${count}&category=${category}&lang=es&encode=url3986`
-    );
+    let apiUrl = `https://opentdb.com/api.php?amount=${count}&category=${category}&lang=es&encode=url3986`;
+
+    if (difficulty) {
+      apiUrl += `&difficulty=${difficulty}`;
+    }
+
+    const response = await fetch(apiUrl);
     const data = await response.json();
 
     if (data.response_code !== 0 || !data.results) {
@@ -362,6 +375,7 @@ export const getOpenTriviaQuestions = async (
         correctAnswer: decodeURIComponent(q.correct_answer),
         explanation: `Fuente: OpenTriviaDB (${q.category})`,
         topicId: q.category.toLowerCase(),
+        difficulty: q.difficulty,
       };
     });
   } catch (error) {

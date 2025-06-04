@@ -22,9 +22,11 @@ export default function Home() {
   const [userStats, setUserStats] = useState<UserStats>({
     progress: 0,
     quizzesTaken: [],
-    correctAnswers: [],
-    totalAnswers: [],
+    correctAnswers: 0,
+    totalAnswers: 0,
   });
+  const [difficulty, setDifficulty] = useState<string>("mixed");
+  const [questionCount, setQuestionCount] = useState<number>(10);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user: User | null) => {
@@ -72,7 +74,11 @@ export default function Home() {
     }
     router.push({
       pathname: "/quiz",
-      query: { topics: selectedTopics.join(",") },
+      query: {
+        topics: selectedTopics.join(","),
+        difficulty,
+        questionCount,
+      },
     });
   };
 
@@ -194,14 +200,30 @@ export default function Home() {
                     </div>
 
                     {topic.lastPlayed && (
-                      <p className="text-xs text-gray-500 mt-2">
-                        Jugado:{" "}
-                        {new Date(
-                          topic.lastPlayed instanceof Date
-                            ? topic.lastPlayed
-                            : topic.lastPlayed.toDate()
-                        ).toLocaleDateString()}
-                      </p>
+                      <div className="mt-2">
+                        <p className="text-xs text-gray-500">
+                          Último quiz:{" "}
+                          {new Date(
+                            topic.lastPlayed instanceof Date
+                              ? topic.lastPlayed
+                              : topic.lastPlayed.toDate()
+                          ).toLocaleDateString()}
+                        </p>
+                        {topic.lastScore !== undefined && (
+                          <p className="text-xs font-medium mt-1">
+                            Puntaje:{" "}
+                            <span
+                              className={
+                                topic.lastScore >= 70
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }
+                            >
+                              {topic.lastScore}%
+                            </span>
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 );
@@ -215,6 +237,38 @@ export default function Home() {
           <h2 className="text-2xl font-bold text-gray-800 mb-6">
             Crear Trivia
           </h2>
+
+          {/* Selector de dificultad */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Dificultad
+            </label>
+            <select
+              value={difficulty}
+              onChange={(e) => setDifficulty(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-lg bg-black text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="mixed">Mixta</option>
+              <option value="easy">Fácil</option>
+              <option value="medium">Media</option>
+              <option value="hard">Difícil</option>
+            </select>
+          </div>
+
+          {/* Selector de cantidad de preguntas */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Número de preguntas
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={questionCount}
+              onChange={(e) => setQuestionCount(Number(e.target.value))}
+              className="w-full p-2 border border-gray-300 rounded-lg bg-black text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
 
           <div className="mb-8">
             <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -306,17 +360,15 @@ export default function Home() {
               <div className="bg-white p-3 rounded-lg border border-gray-100">
                 <p className="text-xs text-gray-500">Respuestas</p>
                 <p className="font-bold text-gray-800">
-                  {userStats.correctAnswers.length}/
-                  {userStats.totalAnswers.length}
+                  {userStats.correctAnswers}/{userStats.totalAnswers}
                 </p>
               </div>
               <div className="bg-white p-3 rounded-lg border border-gray-100">
                 <p className="text-xs text-gray-500">Precisión</p>
                 <p className="font-bold text-gray-800">
-                  {userStats.totalAnswers.length > 0
+                  {userStats.totalAnswers > 0
                     ? Math.round(
-                        (userStats.correctAnswers.length /
-                          userStats.totalAnswers.length) *
+                        (userStats.correctAnswers / userStats.totalAnswers) *
                           100
                       )
                     : 0}

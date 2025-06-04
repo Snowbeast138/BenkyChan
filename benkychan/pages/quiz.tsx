@@ -11,6 +11,7 @@ import { useAuthRedirect } from "../lib/hooks/useAuthRedirect";
 import { Header } from "../src/components/layout/Header";
 import { Footer } from "../src/components/layout/Footer";
 import { QuizStats } from "../src/components/quiz/QuizStats";
+import { QuizResult } from "@/types";
 
 interface Question {
   id: string;
@@ -37,9 +38,12 @@ export default function Quiz() {
 
   useEffect(() => {
     const loadQuestions = async () => {
-      if (!topics) return;
+      if (!topics || !router.query.difficulty || !router.query.questionCount)
+        return;
 
       const topicArray = typeof topics === "string" ? topics.split(",") : [];
+      const difficulty = router.query.difficulty as string;
+      const questionCount = parseInt(router.query.questionCount as string);
 
       try {
         setLoading(true);
@@ -51,14 +55,20 @@ export default function Quiz() {
           topicArray.includes(t.id)
         );
 
+        // Calcula cuántas preguntas por tema (proporcionalmente)
+        const questionsPerTopic = Math.max(
+          1,
+          Math.ceil(questionCount / selectedTopicsData.length)
+        );
+
         const allQuestions = await Promise.all(
           selectedTopicsData.map((t) =>
-            getQuizQuestions(t, Math.ceil(10 / selectedTopicsData.length))
+            getQuizQuestions(t, questionsPerTopic, difficulty)
           )
         ).then((arrays) => arrays.flat());
 
         const shuffled = [...allQuestions].sort(() => 0.5 - Math.random());
-        const selectedQuestions = shuffled.slice(0, 10);
+        const selectedQuestions = shuffled.slice(0, questionCount);
 
         if (selectedQuestions.length === 0) {
           setError(`No se encontraron preguntas sobre los temas seleccionados`);
@@ -74,7 +84,7 @@ export default function Quiz() {
     };
 
     loadQuestions();
-  }, [topics]);
+  }, [topics, router.query.difficulty, router.query.questionCount]);
 
   const handleAnswer = (option: string) => {
     if (validated) return; // No permitir cambiar la respuesta una vez validada
@@ -115,25 +125,30 @@ export default function Quiz() {
     if (!user || !topics) return;
 
     try {
-      // Calcular respuestas correctas (incluyendo la última pregunta)
+      // Calcular respuestas correctas
       const correctAnswers = questions.reduce((acc, q, idx) => {
-        // Para la pregunta actual, usar selectedOption
         if (idx === currentIndex) {
           return acc + (selectedOption === q.correctAnswer ? 1 : 0);
         }
-        // Para preguntas anteriores, asumir que fueron respondidas correctamente
-        // (en una implementación real deberías llevar registro de cada respuesta)
         return acc + 1;
       }, 0);
 
+      const quizResult: QuizResult = {
+        quizId: `quiz-${Date.now()}`,
+        date: new Date(),
+        correctAnswers: correctAnswers,
+        totalQuestions: questions.length,
+        score: Math.round((correctAnswers / questions.length) * 100),
+        topics: typeof topics === "string" ? topics.split(",") : [],
+      };
+
       // Actualizar estadísticas
-      await updateUserStats(user.uid, correctAnswers, questions.length);
+      await updateUserStats(user.uid, quizResult);
 
       // Actualizar estadísticas por tema
-      const topicArray = typeof topics === "string" ? topics.split(",") : [];
       await Promise.all(
-        topicArray.map((topic) =>
-          updateTopicStats(user.uid, topic, correctAnswers, questions.length)
+        quizResult.topics.map((topic) =>
+          updateTopicStats(user.uid, topic, quizResult)
         )
       );
     } catch (err) {

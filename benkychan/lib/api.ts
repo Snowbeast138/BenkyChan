@@ -6,6 +6,7 @@ import {
   getDoc,
   addDoc,
   updateDoc,
+  setDoc,
   arrayUnion,
   query,
 } from "firebase/firestore";
@@ -112,12 +113,29 @@ export const updateUserStats = async (
 ): Promise<void> => {
   try {
     const statsRef = doc(db, "users", userId, "stats", "progress");
-    await updateDoc(statsRef, {
-      quizzesTaken: arrayUnion(new Date()),
-      correctAnswers: arrayUnion(...Array(correctAnswers).fill(true)),
-      totalAnswers: arrayUnion(...Array(totalAnswers).fill(true)),
-      progress: calculateProgress(correctAnswers, totalAnswers),
-    });
+    const statsDoc = await getDoc(statsRef);
+
+    const progress = calculateProgress(correctAnswers, totalAnswers);
+    const newCorrectAnswers = Array(correctAnswers).fill(true);
+    const newTotalAnswers = Array(totalAnswers).fill(true);
+
+    if (statsDoc.exists()) {
+      // Documento existe, actualizarlo
+      await updateDoc(statsRef, {
+        quizzesTaken: arrayUnion(new Date()),
+        correctAnswers: arrayUnion(...newCorrectAnswers),
+        totalAnswers: arrayUnion(...newTotalAnswers),
+        progress: progress,
+      });
+    } else {
+      // Documento no existe, crearlo
+      await setDoc(statsRef, {
+        quizzesTaken: [new Date()],
+        correctAnswers: newCorrectAnswers,
+        totalAnswers: newTotalAnswers,
+        progress: progress,
+      });
+    }
   } catch (error) {
     console.error("Error updating user stats:", error);
     throw new Error("Error al actualizar las estadísticas");
@@ -135,11 +153,29 @@ export const updateTopicStats = async (
 ): Promise<void> => {
   try {
     const topicRef = doc(db, "users", userId, "topics", topicId);
-    await updateDoc(topicRef, {
-      lastPlayed: new Date(),
-      correctAnswers: arrayUnion(...Array(correctAnswers).fill(true)),
-      totalAnswers: arrayUnion(...Array(totalAnswers).fill(true)),
-    });
+    const topicDoc = await getDoc(topicRef);
+
+    const newCorrectAnswers = Array(correctAnswers).fill(true);
+    const newTotalAnswers = Array(totalAnswers).fill(true);
+
+    if (topicDoc.exists()) {
+      await updateDoc(topicRef, {
+        lastPlayed: new Date(),
+        correctAnswers: arrayUnion(...newCorrectAnswers),
+        totalAnswers: arrayUnion(...newTotalAnswers),
+      });
+    } else {
+      // Esto no debería ocurrir si el tema existe, pero es buena práctica manejarlo
+      await setDoc(
+        topicRef,
+        {
+          lastPlayed: new Date(),
+          correctAnswers: newCorrectAnswers,
+          totalAnswers: newTotalAnswers,
+        },
+        { merge: true }
+      );
+    }
   } catch (error) {
     console.error("Error updating topic stats:", error);
     throw new Error("Error al actualizar las estadísticas del tema");

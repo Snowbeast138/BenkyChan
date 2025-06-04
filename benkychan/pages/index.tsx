@@ -80,6 +80,14 @@ export default function Home() {
     setSelectedTopics(topics.map((t) => t.id));
   };
 
+  const calculateTopicProgress = (topic: Topic): number => {
+    if (!topic.correctAnswers || !topic.totalAnswers) return 0;
+    if (topic.totalAnswers.length === 0) return 0;
+    return Math.round(
+      (topic.correctAnswers.length / topic.totalAnswers.length) * 100
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
       {/* Header */}
@@ -138,42 +146,66 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {topics.map((topic) => (
-                <div
-                  key={topic.id}
-                  onClick={() => toggleTopicSelection(topic.id)}
-                  className={`p-5 border rounded-xl cursor-pointer transition-all ${
-                    selectedTopics.includes(topic.id)
-                      ? "border-blue-500 bg-blue-50 shadow-blue-100 shadow-sm"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-gray-800">
-                      {topic.name}
-                    </h3>
-                    {selectedTopics.includes(topic.id) && (
-                      <span className="bg-blue-500 text-white p-1 rounded-full">
-                        <FiCheck className="text-sm" />
+              {topics.map((topic) => {
+                const progress = calculateTopicProgress(topic);
+                const correctCount = topic.correctAnswers?.length || 0;
+                const totalCount = topic.totalAnswers?.length || 0;
+
+                return (
+                  <div
+                    key={topic.id}
+                    onClick={() => toggleTopicSelection(topic.id)}
+                    className={`p-5 border rounded-xl cursor-pointer transition-all relative overflow-hidden ${
+                      selectedTopics.includes(topic.id)
+                        ? "border-blue-500 bg-blue-50 shadow-blue-100 shadow-sm"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
+                    }`}
+                  >
+                    {/* Barra de progreso */}
+                    <div
+                      className="absolute bottom-0 left-0 h-1 bg-blue-200"
+                      style={{ width: `${progress}%` }}
+                    ></div>
+
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-semibold text-gray-800">
+                        {topic.name}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        {selectedTopics.includes(topic.id) && (
+                          <span className="bg-blue-500 text-white p-1 rounded-full">
+                            <FiCheck className="text-sm" />
+                          </span>
+                        )}
+                        <span className="text-xs font-medium text-gray-500">
+                          {progress}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-md">
+                        {topic.questionCount}{" "}
+                        {topic.questionCount === 1 ? "pregunta" : "preguntas"}
                       </span>
+                      <span className="text-xs text-gray-500">
+                        {correctCount}/{totalCount} correctas
+                      </span>
+                    </div>
+
+                    {topic.lastPlayed && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        Jugado:{" "}
+                        {new Date(
+                          topic.lastPlayed instanceof Date
+                            ? topic.lastPlayed
+                            : topic.lastPlayed.toDate()
+                        ).toLocaleDateString()}
+                      </p>
                     )}
                   </div>
-                  <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-md mb-2">
-                    {topic.questionCount}{" "}
-                    {topic.questionCount === 1 ? "pregunta" : "preguntas"}
-                  </span>
-                  {topic.lastPlayed && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Jugado:{" "}
-                      {new Date(
-                        topic.lastPlayed instanceof Date
-                          ? topic.lastPlayed
-                          : topic.lastPlayed.toDate()
-                      ).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -204,7 +236,12 @@ export default function Home() {
                       key={topic.id}
                       className="flex justify-between items-center bg-blue-50/50 rounded-lg px-3 py-2 border border-blue-100"
                     >
-                      <span className="text-gray-700">{topic.name}</span>
+                      <div>
+                        <span className="text-gray-700">{topic.name}</span>
+                        <span className="block text-xs text-gray-500">
+                          {calculateTopicProgress(topic)}% completado
+                        </span>
+                      </div>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -269,7 +306,8 @@ export default function Home() {
               <div className="bg-white p-3 rounded-lg border border-gray-100">
                 <p className="text-xs text-gray-500">Respuestas</p>
                 <p className="font-bold text-gray-800">
-                  {userStats.correctAnswers}/{userStats.totalAnswers}
+                  {userStats.correctAnswers.length}/
+                  {userStats.totalAnswers.length}
                 </p>
               </div>
               <div className="bg-white p-3 rounded-lg border border-gray-100">

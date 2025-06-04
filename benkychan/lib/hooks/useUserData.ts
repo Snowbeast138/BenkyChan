@@ -11,8 +11,8 @@ export const useUserData = () => {
   const [userStats, setUserStats] = useState<UserStats>({
     progress: 0,
     quizzesTaken: [],
-    correctAnswers: [],
-    totalAnswers: [],
+    correctAnswers: 0,
+    totalAnswers: 0,
   });
   const [loading, setLoading] = useState(true);
 

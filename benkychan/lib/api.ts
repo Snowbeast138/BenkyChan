@@ -19,6 +19,39 @@ type QuestionCacheEntry = { questions: Question[]; timestamp: number };
 const questionCache = new Map<string, QuestionCacheEntry>();
 const CACHE_EXPIRATION = 1000 * 60 * 30; // 30 minutos
 
+export const getTopicDetails = async (
+  userId: string,
+  topicId: string
+): Promise<Topic | null> => {
+  try {
+    const topicDoc = await getDoc(doc(db, "users", userId, "topics", topicId));
+
+    if (!topicDoc.exists()) {
+      console.warn(`Topic ${topicId} not found for user ${userId}`);
+      return null;
+    }
+
+    const topicData = topicDoc.data();
+
+    return {
+      id: topicDoc.id,
+      name: topicData.name,
+      description: topicData.description || "",
+      questionCount: topicData.questionCount || 0,
+      createdAt: topicData.createdAt?.toDate() || null,
+      lastPlayed: topicData.lastPlayed?.toDate() || null,
+      lastScore: topicData.lastScore || null,
+      correctAnswers: topicData.correctAnswers || [],
+      totalAnswers: topicData.totalAnswers || [],
+      quizHistory: topicData.quizHistory || [],
+      // Añade cualquier otro campo que necesites
+    } as Topic;
+  } catch (error) {
+    console.error(`Error getting topic details for topic ${topicId}:`, error);
+    throw new Error("Error al obtener los detalles del tema");
+  }
+};
+
 /**
  * Obtiene los temas de un usuario
  */

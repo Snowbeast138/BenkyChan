@@ -12,6 +12,7 @@ import {
   FiX,
   FiAward,
   FiBarChart2,
+  FiBookOpen,
 } from "react-icons/fi";
 
 export default function Home() {
@@ -337,6 +338,31 @@ export default function Home() {
             >
               <FiBarChart2 />
               Mezclar Todos los Temas
+            </button>
+
+            <button
+              onClick={() => {
+                if (selectedTopics.length === 0) {
+                  alert("Por favor selecciona al menos un tema");
+                  return;
+                }
+                router.push({
+                  pathname: "/learn-path",
+                  query: {
+                    topics: selectedTopics.join(","),
+                  },
+                });
+              }}
+              disabled={selectedTopics.length === 0}
+              className={`w-full py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
+                selectedTopics.length === 0
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  : "bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg"
+              }`}
+            >
+              <FiBookOpen />
+              Ruta de Aprendizaje ({selectedTopics.length}{" "}
+              {selectedTopics.length === 1 ? "tema" : "temas"})
             </button>
           </div>
 

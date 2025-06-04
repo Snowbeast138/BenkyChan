@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { auth } from "../lib/firebase";
 import {
-  getTopicQuestions,
+  getQuizQuestions,
+  getUserTopics,
   updateTopicStats,
   updateUserStats,
 } from "../lib/api";
@@ -10,7 +11,6 @@ import { useAuthRedirect } from "../lib/hooks/useAuthRedirect";
 import { Header } from "../src/components/layout/Header";
 import { Footer } from "../src/components/layout/Footer";
 import { QuizStats } from "../src/components/quiz/QuizStats";
-import { shuffleArray } from "../lib/utils/quizUtils";
 
 interface Question {
   id: string;
@@ -23,82 +23,112 @@ interface Question {
 export default function Quiz() {
   useAuthRedirect();
   const router = useRouter();
-  const { topics: topicIds } = router.query;
+  const { topics } = router.query;
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [score, setScore] = useState(0);
-  const [quizCompleted, setQuizCompleted] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [answerHistory, setAnswerHistory] = useState<boolean[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [apiStatus, setApiStatus] = useState<string>("");
+  const [validated, setValidated] = useState(false);
 
   useEffect(() => {
-    const fetchQuestions = async () => {
-      if (!topicIds) return;
+    const loadQuestions = async () => {
+      if (!topics) return;
+
+      const topicArray = typeof topics === "string" ? topics.split(",") : [];
 
       try {
-        const user = auth.currentUser;
-        if (!user) return;
+        setLoading(true);
+        setApiStatus(`Cargando preguntas...`);
+        setError(null);
 
-        const topicIdsArray = (topicIds as string).split(",");
-        const allQuestions = await Promise.all(
-          topicIdsArray.map((id) => getTopicQuestions(user.uid, id))
+        const userTopics = await getUserTopics(auth.currentUser?.uid || "");
+        const selectedTopicsData = userTopics.filter((t) =>
+          topicArray.includes(t.id)
         );
 
-        const flattenedQuestions = allQuestions.flat();
-        const shuffledQuestions = shuffleArray(flattenedQuestions).slice(0, 10); // Limitar a 10 preguntas
-        setQuestions(shuffledQuestions);
-      } catch (error) {
-        console.error("Error fetching questions:", error);
+        const allQuestions = await Promise.all(
+          selectedTopicsData.map((t) =>
+            getQuizQuestions(t, Math.ceil(10 / selectedTopicsData.length))
+          )
+        ).then((arrays) => arrays.flat());
+
+        const shuffled = [...allQuestions].sort(() => 0.5 - Math.random());
+        const selectedQuestions = shuffled.slice(0, 10);
+
+        if (selectedQuestions.length === 0) {
+          setError(`No se encontraron preguntas sobre los temas seleccionados`);
+        } else {
+          setQuestions(selectedQuestions);
+        }
+      } catch (err) {
+        console.error("Error loading questions:", err);
+        setError("Error al cargar las preguntas. Intenta nuevamente.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchQuestions();
-  }, [topicIds]);
+    loadQuestions();
+  }, [topics]);
 
-  const handleOptionSelect = (option: string) => {
+  const handleAnswer = (option: string) => {
+    if (validated) return; // No permitir cambiar la respuesta una vez validada
     setSelectedOption(option);
+    setShowExplanation(false);
   };
 
-  const handleNextQuestion = () => {
+  const handleNext = () => {
     if (selectedOption === null) return;
 
-    const isCorrect =
-      selectedOption === questions[currentQuestionIndex].correctAnswer;
-    setAnswerHistory([...answerHistory, isCorrect]);
+    // Primera acción: validar la respuesta
+    if (!validated) {
+      setValidated(true);
+      const isCorrect =
+        selectedOption === questions[currentIndex].correctAnswer;
+      if (isCorrect) setScore(score + 1);
 
-    if (isCorrect) {
-      setScore(score + 1);
+      if (questions[currentIndex].explanation) {
+        setShowExplanation(true);
+      }
+      return;
     }
 
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    // Segunda acción: avanzar a la siguiente pregunta o finalizar
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
       setSelectedOption(null);
+      setValidated(false);
+      setShowExplanation(false);
     } else {
       completeQuiz();
     }
   };
 
   const completeQuiz = async () => {
-    setQuizCompleted(true);
+    setCompleted(true);
     const user = auth.currentUser;
-    if (!user || !topicIds) return;
+    if (!user || !topics) return;
 
     try {
-      const topicIdsArray = (topicIds as string).split(",");
-      const correctAnswers = answerHistory.filter(Boolean).length;
-      const totalAnswers = answerHistory.length;
+      const correctAnswers = questions.filter((q, idx) =>
+        idx === currentIndex ? selectedOption === q.correctAnswer : true
+      ).length;
 
-      await Promise.all([
-        updateUserStats(user.uid, correctAnswers, totalAnswers),
-        ...topicIdsArray.map((topicId) =>
-          updateTopicStats(user.uid, topicId, correctAnswers, totalAnswers)
-        ),
-      ]);
-    } catch (error) {
-      console.error("Error updating stats:", error);
+      await updateUserStats(user.uid, correctAnswers, questions.length);
+
+      const topicArray = typeof topics === "string" ? topics.split(",") : [];
+      await Promise.all(
+        topicArray.map((topic) =>
+          updateTopicStats(user.uid, topic, correctAnswers, questions.length)
+        )
+      );
+    } catch (err) {
+      console.error("Error saving stats:", err);
     }
   };
 
@@ -106,43 +136,57 @@ export default function Quiz() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
         <Header />
-        <div className="flex justify-center items-center h-64">
+        <div className="flex flex-col items-center justify-center h-64 gap-4">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+          <p className="text-gray-600">
+            {apiStatus || `Cargando preguntas...`}
+          </p>
+          <p className="text-sm text-gray-500">
+            Esto puede tomar unos segundos
+          </p>
         </div>
         <Footer />
       </div>
     );
   }
 
-  if (quizCompleted) {
+  if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
         <Header />
-
         <main className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">
-            ¡Quiz Completado!
-          </h2>
-
-          <QuizStats
-            stats={{
-              progress: Math.round((score / questions.length) * 100),
-              quizzesTaken: [new Date()],
-              correctAnswers: answerHistory,
-              totalAnswers: Array(questions.length).fill(true),
-            }}
-          />
-
-          <div className="mt-6">
-            <button
-              onClick={() => router.push("/")}
-              className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Volver al Inicio
-            </button>
-          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Error</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => router.push("/")}
+            className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Volver al inicio
+          </button>
         </main>
+        <Footer />
+      </div>
+    );
+  }
 
+  if (completed) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
+        <Header />
+        <main className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <QuizStats
+            score={score}
+            total={questions.length}
+            onRestart={() => {
+              setCurrentIndex(0);
+              setScore(0);
+              setCompleted(false);
+              setSelectedOption(null);
+              setValidated(false);
+            }}
+            onHome={() => router.push("/")}
+          />
+        </main>
         <Footer />
       </div>
     );
@@ -152,29 +196,27 @@ export default function Quiz() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
         <Header />
-
         <main className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">
-            No hay preguntas disponibles
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            No hay preguntas
           </h2>
           <p className="text-gray-600 mb-6">
-            Los temas seleccionados no tienen preguntas aún. Por favor, añade
-            preguntas a tus temas.
+            No se encontraron preguntas para los temas seleccionados.
           </p>
           <button
             onClick={() => router.push("/")}
-            className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            Volver al Inicio
+            Volver al inicio
           </button>
         </main>
-
         <Footer />
       </div>
     );
   }
 
-  const currentQuestion = questions[currentQuestionIndex];
+  const currentQuestion = questions[currentIndex];
+  const isLast = currentIndex === questions.length - 1;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
@@ -183,47 +225,67 @@ export default function Quiz() {
       <main className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-800">
-            Pregunta {currentQuestionIndex + 1} de {questions.length}
+            Pregunta {currentIndex + 1} de {questions.length}
           </h2>
-          <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+          <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
             Puntuación: {score}
           </span>
         </div>
 
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-black mb-4">
             {currentQuestion.text}
           </h3>
 
-          <div className="space-y-3">
-            {currentQuestion.options.map((option, index) => (
+          <div className="space-y-3 mb-4">
+            {currentQuestion.options.map((option, i) => (
               <button
-                key={index}
-                onClick={() => handleOptionSelect(option)}
+                key={i}
+                onClick={() => handleAnswer(option)}
+                disabled={validated && selectedOption !== option} // Deshabilitar opciones no seleccionadas una vez validado
                 className={`w-full text-left px-4 py-3 border rounded-lg transition-colors ${
-                  selectedOption === option
+                  validated
+                    ? option === currentQuestion.correctAnswer
+                      ? "border-green-500 bg-green-50"
+                      : selectedOption === option
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-200 opacity-50 cursor-not-allowed"
+                    : selectedOption === option
                     ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
+                    : "border-gray-200 hover:border-blue-300 hover:bg-blue-50"
+                } ${
+                  validated && selectedOption !== option
+                    ? "cursor-not-allowed"
+                    : "cursor-pointer"
                 }`}
               >
-                {option}
+                <span className="text-black">{option}</span>
               </button>
             ))}
           </div>
+
+          {showExplanation && currentQuestion.explanation && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <h4 className="font-semibold text-blue-800 mb-2">Explicación:</h4>
+              <p className="text-gray-700">{currentQuestion.explanation}</p>
+            </div>
+          )}
         </div>
 
         <button
-          onClick={handleNextQuestion}
-          disabled={selectedOption === null}
+          onClick={handleNext}
+          disabled={!selectedOption}
           className={`w-full py-3 rounded-lg text-white ${
-            selectedOption === null
+            !selectedOption
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
-          {currentQuestionIndex < questions.length - 1
-            ? "Siguiente Pregunta"
-            : "Finalizar Quiz"}
+          {validated
+            ? isLast
+              ? "Ver resultados"
+              : "Siguiente pregunta"
+            : "Verificar respuesta"}
         </button>
       </main>
 

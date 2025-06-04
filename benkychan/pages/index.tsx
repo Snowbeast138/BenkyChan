@@ -21,9 +21,9 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(true);
   const [userStats, setUserStats] = useState<UserStats>({
     progress: 0,
-    quizzesTaken: 0,
-    correctAnswers: 0,
-    totalAnswers: 0,
+    quizzesTaken: [],
+    correctAnswers: [],
+    totalAnswers: [],
   });
 
   useEffect(() => {
@@ -275,9 +275,10 @@ export default function Home() {
               <div className="bg-white p-3 rounded-lg border border-gray-100">
                 <p className="text-xs text-gray-500">Precisión</p>
                 <p className="font-bold text-gray-800">
-                  {userStats.totalAnswers > 0
+                  {userStats.totalAnswers.length > 0
                     ? Math.round(
-                        (userStats.correctAnswers / userStats.totalAnswers) *
+                        (userStats.correctAnswers.length /
+                          userStats.totalAnswers.length) *
                           100
                       )
                     : 0}

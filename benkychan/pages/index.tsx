@@ -105,9 +105,7 @@ export default function Home() {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-blue-800">BenkyChan</h1>
-            <p className="text-gray-600">
-              Aprende mediante trivias interactivas
-            </p>
+            <p className="text-gray-600">Aprende a Aprender</p>
           </div>
         </div>
         <button

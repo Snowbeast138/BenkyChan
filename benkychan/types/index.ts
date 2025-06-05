@@ -39,3 +39,25 @@ export interface UserStats {
   correctAnswers: number;
   totalAnswers: number;
 }
+
+export interface RelatedTopic {
+  id: string;
+  name: string;
+  relationType: "fundamental" | "indirect";
+  weight: number; // Peso de la relación (1-10)
+}
+
+export interface KnowledgeGraph {
+  nodes: {
+    id: string;
+    name: string;
+    difficulty: "easy" | "medium" | "hard";
+  }[];
+  links: {
+    // Cambiado de 'edges' a 'links'
+    source: string;
+    target: string;
+    weight: number;
+    type: "fundamental" | "indirect";
+  }[];
+}

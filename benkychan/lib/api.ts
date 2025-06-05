@@ -11,7 +11,14 @@ import {
   query,
   Timestamp,
 } from "firebase/firestore";
-import { Topic, Question, UserStats, QuizResult } from "../types";
+import {
+  Topic,
+  Question,
+  UserStats,
+  QuizResult,
+  RelatedTopic,
+  KnowledgeGraph,
+} from "../types";
 import { shuffleArray } from "./utils/quizUtils";
 
 // Cache para preguntas generadas
@@ -439,4 +446,213 @@ const getTriviaCategory = (topic: string): number => {
   };
 
   return CATEGORIES[topic.toLowerCase()] || 9; // General Knowledge por defecto
+};
+
+/**
+ * Obtiene temas relacionados desde DeepSeek API
+ */
+export const getRelatedTopics = async (
+  topicName: string,
+  count: number = 5
+): Promise<RelatedTopic[]> => {
+  try {
+    const response = await fetch("/api/get-related-topics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic: topicName,
+        count,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("API Error:", {
+        status: response.status,
+        errorData,
+      });
+      throw new Error(`API request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Validación de la respuesta
+    if (!data.relatedTopics || !Array.isArray(data.relatedTopics)) {
+      console.warn("Unexpected API response format:", data);
+      return getFallbackTopics(topicName);
+    }
+
+    return data.relatedTopics.map(
+      (t: { name: string; relevanceScore: number }, i: number) => ({
+        id: `generated-${t.name.toLowerCase().replace(/\s+/g, "-")}-${i}`,
+        name: t.name,
+        relationType: t.relevanceScore >= 7 ? "fundamental" : "indirect",
+        weight: Math.min(10, Math.max(1, t.relevanceScore)),
+      })
+    );
+  } catch (error) {
+    console.error("Error getting related topics:", error);
+    return getFallbackTopics(topicName);
+  }
+};
+
+function getFallbackTopics(mainTopic: string): RelatedTopic[] {
+  return [
+    {
+      id: `fallback-1`,
+      name: `Conceptos básicos de ${mainTopic}`,
+      relationType: "fundamental",
+      weight: 8,
+    },
+    {
+      id: `fallback-2`,
+      name: `Aplicaciones de ${mainTopic}`,
+      relationType: "indirect",
+      weight: 6,
+    },
+  ];
+}
+
+/**
+ * Construye el grafo de conocimiento
+ */
+export const buildKnowledgeGraph = async (
+  userId: string,
+  mainTopicIds: string[]
+): Promise<KnowledgeGraph> => {
+  const graph: KnowledgeGraph = { nodes: [], links: [] };
+
+  // 1. Obtener los temas principales
+  const mainTopics = await Promise.all(
+    mainTopicIds.map((id) => getTopicDetails(userId, id))
+  );
+
+  // Añadir nodos principales
+  mainTopics.forEach((topic) => {
+    if (!topic) return;
+
+    graph.nodes.push({
+      id: topic.id,
+      name: topic.name,
+      difficulty: "medium",
+    });
+  });
+
+  // 2. Obtener temas relacionados para cada tema principal
+  for (const topic of mainTopics) {
+    if (!topic) continue;
+
+    try {
+      const relatedTopics = await getRelatedTopics(topic.name, 5);
+
+      // Procesar temas relacionados
+      relatedTopics.forEach((related) => {
+        // Verificar si el nodo ya existe
+        const existingNode = graph.nodes.find((n) => n.id === related.id);
+
+        if (!existingNode) {
+          graph.nodes.push({
+            id: related.id,
+            name: related.name,
+            difficulty:
+              related.relationType === "fundamental" ? "easy" : "hard",
+          });
+        }
+
+        // Añadir conexión
+        graph.links.push({
+          source: topic.id,
+          target: related.id,
+          weight: related.weight,
+          type: related.relationType,
+        });
+      });
+    } catch (error) {
+      console.error(`Error getting related topics for ${topic.name}:`, error);
+      // Continuar con el siguiente tema si hay error
+    }
+  }
+
+  return graph;
+};
+/**
+ * Implementación de Dijkstra para encontrar el mejor camino de aprendizaje
+ */
+export const findOptimalLearningPath = (
+  graph: KnowledgeGraph,
+  startTopicId: string
+): string[] => {
+  // Verificar si el nodo de inicio existe en el grafo
+  if (!graph.nodes.some((node) => node.id === startTopicId)) {
+    console.warn(`Start topic ID ${startTopicId} not found in graph`);
+    return [];
+  }
+
+  const nodes = graph.nodes.map((n) => n.id);
+  const links = graph.links; // Cambiado de edges a links
+
+  const distances: Record<string, number> = {};
+  const previous: Record<string, string | null> = {};
+  const visited = new Set<string>();
+
+  // Inicialización
+  nodes.forEach((node) => {
+    distances[node] = node === startTopicId ? 0 : Infinity;
+    previous[node] = null;
+  });
+
+  // Procesamiento con algoritmo Dijkstra
+  while (visited.size < nodes.length) {
+    // Encontrar el nodo no visitado con la distancia más pequeña
+    const unvisitedNodes = Object.entries(distances)
+      .filter(([node]) => !visited.has(node))
+      .sort((a, b) => a[1] - b[1]);
+
+    // Si no hay nodos alcanzables no visitados, terminar
+    if (unvisitedNodes.length === 0 || unvisitedNodes[0][1] === Infinity) break;
+
+    const [currentNode] = unvisitedNodes[0];
+
+    visited.add(currentNode);
+
+    // Obtener todos los enlaces salientes del nodo actual
+    const outgoingLinks = links.filter((link) => link.source === currentNode);
+
+    // Actualizar distancias para los nodos vecinos
+    for (const link of outgoingLinks) {
+      const neighbor = link.target;
+      const weight = 11 - link.weight; // Invertimos el peso (mayor peso = mejor conexión)
+
+      const totalDistance = distances[currentNode] + weight;
+
+      if (totalDistance < distances[neighbor]) {
+        distances[neighbor] = totalDistance;
+        previous[neighbor] = currentNode;
+      }
+    }
+  }
+
+  // Reconstruir el camino óptimo
+  const path: string[] = [];
+
+  // Ordenar nodos por distancia (excluyendo el nodo de inicio)
+  const sortedNodes = Object.entries(distances)
+    .filter(([node]) => node !== startTopicId)
+    .sort((a, b) => a[1] - b[1])
+    .map(([node]) => node);
+
+  // Construir camino desde el nodo más cercano
+  let current: string | null = sortedNodes[0] || null;
+
+  while (current && current !== startTopicId) {
+    path.unshift(current); // Añadir al principio del array
+    current = previous[current];
+  }
+
+  // Añadir el nodo de inicio al principio si hay un camino
+  if (path.length > 0) {
+    path.unshift(startTopicId);
+  }
+
+  return path;
 };

@@ -325,30 +325,96 @@ export default function LearnPath() {
             )}
 
             {learningPath.length > 0 && (
-              <div className="mt-6">
-                <h3 className="font-bold text-lg mb-3">
+              <div className="mt-8">
+                <h3 className="font-bold text-lg mb-4 text-gray-800">
                   Camino de Aprendizaje Recomendado:
                 </h3>
-                <div className="flex flex-wrap gap-2 items-center">
-                  {learningPath.map((topicId, index) => {
-                    const topic = knowledgeGraph?.nodes.find(
-                      (n) => n.id === topicId
-                    );
-                    return (
-                      <div key={topicId} className="flex items-center gap-2">
-                        {index > 0 && <span className="text-gray-400">→</span>}
-                        <span
-                          className={`px-3 py-1 rounded-full ${
-                            index === 0
-                              ? "bg-blue-600 text-white"
-                              : "bg-blue-100 text-blue-800"
-                          }`}
-                        >
-                          {topic?.name || topicId}
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div className="relative">
+                  {/* Línea de conexión */}
+                  <div className="absolute left-8 top-5 bottom-5 w-0.5 bg-blue-300 z-0"></div>
+
+                  <div className="relative z-10 space-y-4">
+                    {learningPath.map((topicId, index) => {
+                      const topic = knowledgeGraph?.nodes.find(
+                        (n) => n.id === topicId
+                      );
+                      const isMainTopic = topics.some((t) => t.id === topicId);
+                      const isLast = index === learningPath.length - 1;
+
+                      return (
+                        <div key={topicId} className="flex items-start gap-4">
+                          {/* Número de paso */}
+                          <div
+                            className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold 
+                ${
+                  isMainTopic
+                    ? "bg-blue-600 text-white"
+                    : "bg-green-100 text-green-800"
+                }`}
+                          >
+                            {index + 1}
+                          </div>
+
+                          {/* Tarjeta del tema */}
+                          <div
+                            className={`flex-1 p-4 rounded-lg border ${
+                              isMainTopic
+                                ? "border-blue-200 bg-blue-50"
+                                : "border-green-200 bg-green-50"
+                            } 
+                shadow-sm hover:shadow-md transition-shadow`}
+                          >
+                            <h4 className="font-bold text-gray-800">
+                              {topic?.name || topicId}
+                            </h4>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {isMainTopic
+                                ? "Tema principal"
+                                : "Tema relacionado"}
+                            </p>
+
+                            {/* Acciones */}
+                            <div className="mt-3 flex gap-2">
+                              <button
+                                onClick={() =>
+                                  router.push(`/quiz?topicId=${topicId}`)
+                                }
+                                className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                              >
+                                Tomar Quiz
+                              </button>
+                              <button
+                                onClick={() => setSelectedNode(topicId)}
+                                className="px-3 py-1 bg-white text-blue-600 text-sm rounded border border-blue-200 hover:bg-blue-50 transition-colors"
+                              >
+                                Ver en Mapa
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Flecha (excepto para el último elemento) */}
+                          {!isLast && (
+                            <div className="absolute left-9 top-14 transform -translate-x-1/2 mt-5 text-gray-400">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-6 w-6"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                                />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

@@ -172,16 +172,39 @@ export default async function handler(
       });
     }
 
-    // 12. Procesamiento de los resultados
-    const result = topicsArray.map((name: string) => {
-      const relevanceScore = calculateRelevanceScore(name, topic);
+    // 12. Procesamiento de los resultados con puntuaciones únicas
+    const usedScores = new Set<number>();
+    const result = topicsArray.map((name: string, index: number) => {
+      let relevanceScore: number;
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      // Asegurar puntuación única
+      do {
+        relevanceScore = calculateRelevanceScore(name, topic, index);
+        attempts++;
+        if (attempts >= maxAttempts) {
+          // Si después de varios intentos no conseguimos una única, forzar diferencia
+          relevanceScore += index * 0.01;
+          break;
+        }
+      } while (usedScores.has(relevanceScore));
+
+      usedScores.add(relevanceScore);
+
+      // Redondear a 2 decimales para mejor presentación
+      const finalScore = parseFloat(relevanceScore.toFixed(2));
+
       console.log(
-        `[DeepSeek] Procesando tema: "${name}" -> Relevancia: ${relevanceScore}`
+        `[DeepSeek] Procesando tema: "${name}" -> Relevancia: ${finalScore}`
       );
-      return { name, relevanceScore };
+      return { name, relevanceScore: finalScore };
     });
 
-    // 13. Log detallado de los resultados
+    // 13. Ordenar por relevancia (mayor a menor)
+    result.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+    // 14. Log detallado de los resultados
     console.log("[DeepSeek] Resultados finales:", {
       topicPrincipal: topic,
       temasRelacionados: result.map(
@@ -190,7 +213,7 @@ export default async function handler(
       totalTemas: result.length,
     });
 
-    // 14. Retornar respuesta exitosa
+    // 15. Retornar respuesta exitosa
     return res.status(200).json({
       relatedTopics: result,
       debug: {
@@ -209,21 +232,52 @@ export default async function handler(
   }
 }
 
-// Función auxiliar para calcular puntuación de relevancia
-function calculateRelevanceScore(topicName: string, mainTopic: string): number {
+// Función mejorada para calcular puntuación de relevancia única
+function calculateRelevanceScore(
+  topicName: string,
+  mainTopic: string,
+  index: number
+): number {
   try {
-    const similarity = topicName.toLowerCase().includes(mainTopic.toLowerCase())
-      ? 8 // Mayor puntuación si incluye el nombre del tema principal
-      : 5; // Puntuación base si no lo incluye
+    // Factores de ponderación base
+    const baseScore = 5;
+    let score = baseScore;
 
-    // Asegurar que el score esté entre 1 y 10
-    return Math.min(10, Math.max(1, similarity));
+    // 1. Relevancia por inclusión del término principal
+    const includesMainTopic = topicName
+      .toLowerCase()
+      .includes(mainTopic.toLowerCase());
+    if (includesMainTopic) {
+      score += 3; // Bonus por inclusión directa
+    }
+
+    // 2. Dificultad por longitud del nombre (temas más largos pueden ser más específicos/complejos)
+    const lengthFactor = Math.min(topicName.length / 15, 3); // Máximo 3 puntos
+    score += lengthFactor;
+
+    // 3. Especificidad (cuantas palabras contiene)
+    const wordCount = topicName.split(/\s+/).length;
+    const specificityBonus = Math.min(wordCount * 0.5, 2); // Máximo 2 puntos
+    score += specificityBonus;
+
+    // 4. Variación por posición (para dar importancia al orden inicial)
+    const positionBonus = 1 - index / 20; // Hasta 1 punto extra para los primeros
+
+    // 5. Variación aleatoria controlada (pequeña diferencia para evitar empates)
+    const randomVariation = Math.random() * 0.5;
+
+    // Calcular puntuación final
+    score = score + positionBonus + randomVariation;
+
+    // Asegurar que el score esté entre 4 y 10
+    return Math.min(10, Math.max(4, score));
   } catch (error) {
     console.error("[calculateRelevanceScore] Error calculando score:", {
       topicName,
       mainTopic,
       error,
     });
-    return 5; // Valor por defecto en caso de error
+    // Retornar valor base con variación mínima basada en índice en caso de error
+    return 5 + index * 0.01;
   }
 }

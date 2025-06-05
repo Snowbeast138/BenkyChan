@@ -15,26 +15,56 @@ import {
   FiBookOpen,
 } from "react-icons/fi";
 
+/**
+ * Página principal de la aplicación BenkyChan
+ * 
+ * Funcionalidades principales:
+ * - Muestra los temas de estudio del usuario
+ * - Permite seleccionar temas para realizar quizzes
+ * - Muestra estadísticas de progreso
+ * - Ofrece opciones para crear quizzes y rutas de aprendizaje
+ */
 export default function Home() {
   const router = useRouter();
+  
+  // Estado para almacenar los temas del usuario
   const [topics, setTopics] = useState<Topic[]>([]);
+  
+  // Estado para los temas seleccionados para el quiz
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  
+  // Estado para controlar la carga de datos
   const [loading, setLoading] = useState<boolean>(true);
+  
+  // Estado para las estadísticas del usuario
   const [userStats, setUserStats] = useState<UserStats>({
     progress: 0,
     quizzesTaken: [],
     correctAnswers: 0,
     totalAnswers: 0,
   });
+  
+  // Estado para la dificultad del quiz (valor por defecto: "mixed")
   const [difficulty, setDifficulty] = useState<string>("mixed");
+  
+  // Estado para el número de preguntas del quiz (valor por defecto: 10)
   const [questionCount, setQuestionCount] = useState<number>(10);
 
+  /**
+   * Efecto para verificar autenticación y cargar datos del usuario
+   * 
+   * - Verifica si el usuario está autenticado usando onAuthStateChanged
+   * - Si no está autenticado, redirige a /login
+   * - Si está autenticado, carga sus temas y estadísticas
+   * - Maneja errores durante la carga de datos
+   */
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user: User | null) => {
       if (!user) {
         router.push("/login");
       } else {
         try {
+          // Carga en paralelo los temas y estadísticas del usuario
           const [userTopics, stats] = await Promise.all([
             getUserTopics(user.uid),
             getUserStats(user.uid),
@@ -51,6 +81,13 @@ export default function Home() {
     return () => unsubscribe();
   }, [router]);
 
+  /**
+   * Maneja el cierre de sesión del usuario
+   * 
+   * - Llama a auth.signOut() para cerrar sesión
+   * - Redirige a la página de login
+   * - Maneja posibles errores durante el proceso
+   */
   const handleLogout = async (): Promise<void> => {
     try {
       await auth.signOut();
@@ -60,6 +97,13 @@ export default function Home() {
     }
   };
 
+  /**
+   * Alterna la selección de un tema
+   * 
+   * @param topicId - ID del tema a seleccionar/deseleccionar
+   * - Si el tema ya está seleccionado, lo quita de la lista
+   * - Si no está seleccionado, lo agrega a la lista
+   */
   const toggleTopicSelection = (topicId: string): void => {
     setSelectedTopics((prev) =>
       prev.includes(topicId)
@@ -68,6 +112,15 @@ export default function Home() {
     );
   };
 
+  /**
+   * Inicia un nuevo quiz con los temas seleccionados
+   * 
+   * - Valida que haya al menos un tema seleccionado
+   * - Navega a la página /quiz con los parámetros:
+   *   * topics: IDs de temas seleccionados (separados por comas)
+   *   * difficulty: nivel de dificultad seleccionado
+   *   * questionCount: número de preguntas seleccionado
+   */
   const startQuiz = (): void => {
     if (selectedTopics.length === 0) {
       alert("Por favor selecciona al menos un tema");
@@ -83,10 +136,19 @@ export default function Home() {
     });
   };
 
+  /**
+   * Selecciona automáticamente todos los temas disponibles
+   */
   const mixAllTopics = (): void => {
     setSelectedTopics(topics.map((t) => t.id));
   };
 
+  /**
+   * Calcula el progreso de un tema específico
+   * 
+   * @param topic - Objeto tema con información de respuestas
+   * @returns Porcentaje de progreso (0-100) basado en respuestas correctas
+   */
   const calculateTopicProgress = (topic: Topic): number => {
     if (!topic.correctAnswers || !topic.totalAnswers) return 0;
     if (topic.totalAnswers.length === 0) return 0;
@@ -97,8 +159,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
-      {/* Header */}
+      {/* Header con logo y botón de cerrar sesión */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        {/* Logo y nombre de la app */}
         <div className="flex items-center gap-3">
           <div className="bg-blue-600 text-white p-2 rounded-lg">
             <FiAward className="text-2xl" />
@@ -108,6 +171,8 @@ export default function Home() {
             <p className="text-gray-600">Aprende a Aprender</p>
           </div>
         </div>
+        
+        {/* Botón de cerrar sesión */}
         <button
           onClick={handleLogout}
           className="flex items-center gap-2 bg-white text-red-500 px-4 py-2 rounded-lg hover:bg-red-50 border border-red-100 transition-colors"
@@ -117,10 +182,11 @@ export default function Home() {
         </button>
       </header>
 
-      {/* Main Content */}
+      {/* Contenido principal dividido en dos columnas */}
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-        {/* Topics Section */}
+        {/* Sección de temas (ocupa 2/3 del espacio en pantallas grandes) */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2">
+          {/* Encabezado con título y botón para añadir tema */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800">
               Tus Temas de Estudio
@@ -133,6 +199,7 @@ export default function Home() {
             </Link>
           </div>
 
+          {/* Estados de carga: cargando, sin temas, o lista de temas */}
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent"></div>
@@ -151,6 +218,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Mapeo de todos los temas del usuario */}
               {topics.map((topic) => {
                 const progress = calculateTopicProgress(topic);
                 const correctCount = topic.correctAnswers?.length || 0;
@@ -166,12 +234,13 @@ export default function Home() {
                         : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
                     }`}
                   >
-                    {/* Barra de progreso */}
+                    {/* Barra de progreso en la parte inferior */}
                     <div
                       className="absolute bottom-0 left-0 h-1 bg-blue-200"
                       style={{ width: `${progress}%` }}
                     ></div>
 
+                    {/* Encabezado del tema con nombre y porcentaje */}
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-semibold text-gray-800">
                         {topic.name}
@@ -188,6 +257,7 @@ export default function Home() {
                       </div>
                     </div>
 
+                    {/* Información de preguntas y respuestas */}
                     <div className="flex justify-between items-center mb-1">
                       <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-md">
                         {topic.questionCount}{" "}
@@ -198,6 +268,7 @@ export default function Home() {
                       </span>
                     </div>
 
+                    {/* Información del último quiz si existe */}
                     {topic.lastPlayed && (
                       <div className="mt-2">
                         <p className="text-xs text-gray-500">
@@ -231,7 +302,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* Action Panel */}
+        {/* Panel lateral de acciones (1/3 del espacio en pantallas grandes) */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-6 h-fit">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">
             Crear Trivia
@@ -269,6 +340,7 @@ export default function Home() {
             />
           </div>
 
+          {/* Lista de temas seleccionados */}
           <div className="mb-8">
             <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
               <FiBarChart2 />
@@ -310,7 +382,9 @@ export default function Home() {
             )}
           </div>
 
+          {/* Botones de acción principales */}
           <div className="space-y-4 mb-8">
+            {/* Botón para iniciar quiz */}
             <button
               onClick={startQuiz}
               disabled={selectedTopics.length === 0}
@@ -325,6 +399,7 @@ export default function Home() {
               {selectedTopics.length === 1 ? "tema" : "temas"})
             </button>
 
+            {/* Botón para seleccionar todos los temas */}
             <button
               onClick={mixAllTopics}
               disabled={topics.length === 0}
@@ -338,6 +413,7 @@ export default function Home() {
               Mezclar Todos los Temas
             </button>
 
+            {/* Botón para ruta de aprendizaje */}
             <button
               onClick={() => {
                 if (selectedTopics.length === 0) {
@@ -364,6 +440,7 @@ export default function Home() {
             </button>
           </div>
 
+          {/* Panel de estadísticas del usuario */}
           <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-5 border border-gray-100">
             <h3 className="font-semibold text-gray-800 mb-3">Tu progreso</h3>
             <div className="mb-2 flex justify-between items-center">
@@ -404,6 +481,7 @@ export default function Home() {
         </div>
       </main>
 
+      {/* Pie de página */}
       <footer className="mt-12 text-center text-gray-500 text-sm pb-8">
         <p>BenkyChan - Aprende jugando © {new Date().getFullYear()}</p>
       </footer>

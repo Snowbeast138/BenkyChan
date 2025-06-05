@@ -13,6 +13,9 @@ import { Footer } from "../src/components/layout/Footer";
 import { QuizStats } from "../src/components/quiz/QuizStats";
 import { QuizResult } from "@/types";
 
+/**
+ * Interfaz para definir la estructura de una pregunta del quiz
+ */
 interface Question {
   id: string;
   text: string;
@@ -21,10 +24,18 @@ interface Question {
   explanation?: string;
 }
 
+/**
+ * Componente principal de la página de Quiz
+ * Maneja la lógica de preguntas, respuestas y resultados
+ */
 export default function Quiz() {
+  // Hook personalizado para redireccionar si el usuario no está autenticado
   useAuthRedirect();
+  
   const router = useRouter();
   const { topics } = router.query;
+  
+  // Estados del componente
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -36,11 +47,16 @@ export default function Quiz() {
   const [apiStatus, setApiStatus] = useState<string>("");
   const [validated, setValidated] = useState(false);
 
+  /**
+   * Efecto para cargar las preguntas cuando cambian los parámetros de la URL
+   */
   useEffect(() => {
     const loadQuestions = async () => {
+      // Verifica que los parámetros necesarios estén presentes
       if (!topics || !router.query.difficulty || !router.query.questionCount)
         return;
 
+      // Procesa los temas (pueden venir como string o array)
       const topicArray = typeof topics === "string" ? topics.split(",") : [];
       const difficulty = router.query.difficulty as string;
       const questionCount = parseInt(router.query.questionCount as string);
@@ -50,23 +66,26 @@ export default function Quiz() {
         setApiStatus(`Cargando preguntas...`);
         setError(null);
 
+        // Obtiene los temas del usuario desde la API
         const userTopics = await getUserTopics(auth.currentUser?.uid || "");
         const selectedTopicsData = userTopics.filter((t) =>
           topicArray.includes(t.id)
         );
 
-        // Calcula cuántas preguntas por tema (proporcionalmente)
+        // Calcula cuántas preguntas por tema (distribución proporcional)
         const questionsPerTopic = Math.max(
           1,
           Math.ceil(questionCount / selectedTopicsData.length)
         );
 
+        // Obtiene las preguntas para cada tema en paralelo
         const allQuestions = await Promise.all(
           selectedTopicsData.map((t) =>
             getQuizQuestions(t, questionsPerTopic, difficulty)
           )
         ).then((arrays) => arrays.flat());
 
+        // Mezcla las preguntas y selecciona la cantidad requerida
         const shuffled = [...allQuestions].sort(() => 0.5 - Math.random());
         const selectedQuestions = shuffled.slice(0, questionCount);
 
@@ -86,12 +105,21 @@ export default function Quiz() {
     loadQuestions();
   }, [topics, router.query.difficulty, router.query.questionCount]);
 
+  /**
+   * Maneja la selección de una respuesta por parte del usuario
+   * @param option - La opción seleccionada
+   */
   const handleAnswer = (option: string) => {
     if (validated) return; // No permitir cambiar la respuesta una vez validada
     setSelectedOption(option);
     setShowExplanation(false);
   };
 
+  /**
+   * Maneja la acción del botón "Siguiente" con lógica en dos pasos:
+   * 1. Validar la respuesta actual
+   * 2. Avanzar a la siguiente pregunta o finalizar el quiz
+   */
   const handleNext = () => {
     if (selectedOption === null) return;
 
@@ -119,13 +147,16 @@ export default function Quiz() {
     }
   };
 
+  /**
+   * Finaliza el quiz y guarda las estadísticas en la base de datos
+   */
   const completeQuiz = async () => {
     setCompleted(true);
     const user = auth.currentUser;
     if (!user || !topics) return;
 
     try {
-      // Calcular respuestas correctas
+      // Calcular respuestas correctas (incluyendo la pregunta actual)
       const correctAnswers = questions.reduce((acc, q, idx) => {
         if (idx === currentIndex) {
           return acc + (selectedOption === q.correctAnswer ? 1 : 0);
@@ -133,6 +164,7 @@ export default function Quiz() {
         return acc + 1;
       }, 0);
 
+      // Crear objeto con los resultados del quiz
       const quizResult: QuizResult = {
         quizId: `quiz-${Date.now()}`,
         date: new Date(),
@@ -142,10 +174,10 @@ export default function Quiz() {
         topics: typeof topics === "string" ? topics.split(",") : [],
       };
 
-      // Actualizar estadísticas
+      // Actualizar estadísticas globales del usuario
       await updateUserStats(user.uid, quizResult);
 
-      // Actualizar estadísticas por tema
+      // Actualizar estadísticas por cada tema individual
       await Promise.all(
         quizResult.topics.map((topic) =>
           updateTopicStats(user.uid, topic, quizResult)
@@ -156,6 +188,7 @@ export default function Quiz() {
     }
   };
 
+  // Estado de carga
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
@@ -174,6 +207,7 @@ export default function Quiz() {
     );
   }
 
+  // Estado de error
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
@@ -193,6 +227,7 @@ export default function Quiz() {
     );
   }
 
+  // Quiz completado - mostrar resultados
   if (completed) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
@@ -216,6 +251,7 @@ export default function Quiz() {
     );
   }
 
+  // No hay preguntas disponibles
   if (questions.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
@@ -239,14 +275,17 @@ export default function Quiz() {
     );
   }
 
+  // Obtener pregunta actual y verificar si es la última
   const currentQuestion = questions[currentIndex];
   const isLast = currentIndex === questions.length - 1;
 
+  // Renderizado principal del quiz
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 md:p-8">
       <Header />
 
       <main className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        {/* Encabezado con número de pregunta y puntuación */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-800">
             Pregunta {currentIndex + 1} de {questions.length}
@@ -256,17 +295,19 @@ export default function Quiz() {
           </span>
         </div>
 
+        {/* Contenedor de la pregunta y opciones */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-black mb-4">
             {currentQuestion.text}
           </h3>
 
+          {/* Lista de opciones de respuesta */}
           <div className="space-y-3 mb-4">
             {currentQuestion.options.map((option, i) => (
               <button
                 key={i}
                 onClick={() => handleAnswer(option)}
-                disabled={validated && selectedOption !== option} // Deshabilitar opciones no seleccionadas una vez validado
+                disabled={validated && selectedOption !== option}
                 className={`w-full text-left px-4 py-3 border rounded-lg transition-colors ${
                   validated
                     ? option === currentQuestion.correctAnswer
@@ -288,6 +329,7 @@ export default function Quiz() {
             ))}
           </div>
 
+          {/* Explicación (si existe y está habilitada) */}
           {showExplanation && currentQuestion.explanation && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
               <h4 className="font-semibold text-blue-800 mb-2">Explicación:</h4>
@@ -296,6 +338,7 @@ export default function Quiz() {
           )}
         </div>
 
+        {/* Botón de acción principal (Verificar/Siguiente/Resultados) */}
         <button
           onClick={handleNext}
           disabled={!selectedOption}

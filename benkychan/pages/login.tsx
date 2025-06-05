@@ -5,25 +5,41 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import { EnvelopeIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 
+/**
+ * Componente de página de inicio de sesión
+ * Permite a los usuarios autenticarse con email y contraseña
+ * usando Firebase Authentication
+ */
 export default function Login() {
+  // Estados para manejar los campos del formulario y errores
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
 
+  /**
+   * Maneja el envío del formulario de inicio de sesión
+   * @param e - Evento del formulario
+   */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Intenta autenticar al usuario con Firebase
       await signInWithEmailAndPassword(auth, email, password);
+      // Redirige a la página principal después del login exitoso
       router.push("/");
     } catch {
+      // Muestra error si la autenticación falla
       setError("Correo o contraseña incorrectos");
     }
   };
 
   return (
+    // Contenedor principal con fondo degradado
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      {/* Tarjeta blanca con sombra que contiene el formulario */}
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden w-full max-w-md">
+        {/* Cabecera con degradado */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-center">
           <h1 className="text-3xl font-bold text-white">
             Bienvenido a <span className="text-yellow-300">BenkyChan</span>
@@ -31,7 +47,9 @@ export default function Login() {
           <p className="text-blue-100 mt-2">Inicia sesión para continuar</p>
         </div>
 
+        {/* Formulario de login */}
         <form onSubmit={handleLogin} className="p-8 space-y-6">
+          {/* Mensaje de error */}
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded-lg flex items-center">
               <svg
@@ -51,6 +69,7 @@ export default function Login() {
             </div>
           )}
 
+          {/* Campo de email */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Correo electrónico
@@ -70,6 +89,7 @@ export default function Login() {
             </div>
           </div>
 
+          {/* Campo de contraseña */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Contraseña
@@ -89,6 +109,7 @@ export default function Login() {
             </div>
           </div>
 
+          {/* Opciones adicionales: recordar usuario y recuperar contraseña */}
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <input
@@ -112,6 +133,7 @@ export default function Login() {
             </Link>
           </div>
 
+          {/* Botón de submit */}
           <button
             type="submit"
             className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white py-3 px-4 rounded-lg shadow-md transition duration-300 flex justify-center items-center"
@@ -133,6 +155,7 @@ export default function Login() {
           </button>
         </form>
 
+        {/* Enlace para redirigir a registro */}
         <div className="px-8 pb-8 text-center">
           <p className="text-gray-600">
             ¿No tienes cuenta?{" "}

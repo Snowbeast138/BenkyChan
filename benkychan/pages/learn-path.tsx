@@ -376,7 +376,7 @@ export default function LearnPath() {
                           ?.difficulty
                       }
                     </p>
-                    {topics.some((t) => t.id === selectedNode) && (
+                    {/* {topics.some((t) => t.id === selectedNode) && (
                       <button
                         onClick={() =>
                           router.push(`/quiz?topicId=${selectedNode}`)
@@ -385,7 +385,7 @@ export default function LearnPath() {
                       >
                         Tomar Quiz
                       </button>
-                    )}
+                    )} */}
                   </div>
                 )}
               </div>
@@ -441,14 +441,14 @@ export default function LearnPath() {
                             </p>
 
                             <div className="mt-3 flex gap-2">
-                              <button
+                              {/* <button
                                 onClick={() =>
                                   router.push(`/quiz?topicId=${topicId}`)
                                 }
                                 className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
                               >
                                 Tomar Quiz
-                              </button>
+                              </button> */}
                               <button
                                 onClick={() => setSelectedNode(topicId)}
                                 className="px-3 py-1 bg-white text-blue-600 text-sm rounded border border-blue-200 hover:bg-blue-50 transition-colors"

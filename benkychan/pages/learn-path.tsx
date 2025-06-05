@@ -5,7 +5,6 @@ import {
   getTopicDetails,
   getTopicQuestions,
   buildKnowledgeGraph,
-  findOptimalLearningPath,
 } from "../lib/api";
 import { Topic, Question, KnowledgeGraph } from "../types";
 import Link from "next/link";
@@ -26,7 +25,7 @@ const ForceGraph = dynamic(
 );
 
 type GraphNode = {
-  id?: string | number; // Make id optional to match library
+  id?: string | number;
   name?: string;
   val?: number;
   color?: string;
@@ -37,7 +36,7 @@ type GraphNode = {
   vy?: number;
   fx?: number;
   fy?: number;
-  [key: string]: unknown; // Changed from any to unknown for better type safety
+  [key: string]: unknown;
 };
 type GraphLink = {
   source: string | number | GraphNode;
@@ -76,6 +75,8 @@ export default function LearnPath() {
   useEffect(() => {
     if (!topicsQuery || !auth.currentUser) return;
 
+    // ... (código anterior se mantiene igual hasta la parte de loadData en el useEffect)
+
     const loadData = async () => {
       try {
         const topicIds = (topicsQuery as string).split(",");
@@ -95,7 +96,7 @@ export default function LearnPath() {
           const nodes = graph.nodes.map((node) => ({
             id: node.id,
             name: node.name,
-            val: topicIds.includes(node.id) ? 10 : 5, // Tamaño diferente para nodos principales
+            val: topicIds.includes(node.id) ? 10 : 5,
             color: topicIds.includes(node.id) ? "#3b82f6" : "#10b981",
             difficulty: node.difficulty,
           }));
@@ -111,8 +112,76 @@ export default function LearnPath() {
 
           // Calcular camino de aprendizaje si hay temas
           if (validTopics.length > 0) {
-            const path = findOptimalLearningPath(graph, validTopics[0].id);
-            setLearningPath(path);
+            // 1. Obtener todos los nodos relacionados con los temas seleccionados
+            const allRelatedNodes = new Set<string>();
+            topicIds.forEach((topicId) => {
+              // Añadir el tema principal
+              allRelatedNodes.add(topicId);
+
+              // Añadir temas relacionados (dependencias)
+              graph.links.forEach((link) => {
+                if (link.source === topicId) {
+                  allRelatedNodes.add(link.target as string);
+                }
+                if (link.target === topicId) {
+                  allRelatedNodes.add(link.source as string);
+                }
+              });
+            });
+
+            // 2. Calcular puntuación de relevancia para cada nodo
+            const nodesWithScores = Array.from(allRelatedNodes).map(
+              (nodeId) => {
+                const node = graph.nodes.find((n) => n.id === nodeId);
+                const isMainTopic = topicIds.includes(nodeId);
+
+                // Calcular score basado en:
+                // - Si es tema principal (mayor peso)
+                // - Número de conexiones (grado del nodo)
+                // - Peso de las conexiones
+                let score = isMainTopic ? 100 : 0;
+
+                // Sumar pesos de conexiones entrantes
+                const incomingLinks = graph.links.filter(
+                  (l) => l.target === nodeId
+                );
+                score += incomingLinks.reduce(
+                  (sum, link) => sum + (link.weight || 1),
+                  0
+                );
+
+                // Sumar pesos de conexiones salientes
+                const outgoingLinks = graph.links.filter(
+                  (l) => l.source === nodeId
+                );
+                score += outgoingLinks.reduce(
+                  (sum, link) => sum + (link.weight || 1),
+                  0
+                );
+
+                return {
+                  id: nodeId,
+                  name: node?.name || nodeId,
+                  score,
+                  isMainTopic,
+                };
+              }
+            );
+
+            // 3. Ordenar por score descendente
+            nodesWithScores.sort((a, b) => b.score - a.score);
+
+            // 4. Crear el camino de aprendizaje manteniendo los temas principales primero
+            const mainTopics = nodesWithScores.filter((n) => n.isMainTopic);
+            const relatedTopics = nodesWithScores.filter((n) => !n.isMainTopic);
+
+            // 5. Construir el path final
+            const orderedPath = [
+              ...mainTopics.map((t) => t.id),
+              ...relatedTopics.map((t) => t.id),
+            ];
+
+            setLearningPath(orderedPath);
           }
         }
 
@@ -128,6 +197,8 @@ export default function LearnPath() {
         setLoading(false);
       }
     };
+
+    // ... (el resto del código se mantiene igual)
 
     loadData();
   }, [topicsQuery]);
@@ -330,7 +401,6 @@ export default function LearnPath() {
                   Camino de Aprendizaje Recomendado:
                 </h3>
                 <div className="relative">
-                  {/* Línea de conexión */}
                   <div className="absolute left-8 top-5 bottom-5 w-0.5 bg-blue-300 z-0"></div>
 
                   <div className="relative z-10 space-y-4">
@@ -343,26 +413,23 @@ export default function LearnPath() {
 
                       return (
                         <div key={topicId} className="flex items-start gap-4">
-                          {/* Número de paso */}
                           <div
                             className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold 
-                ${
-                  isMainTopic
-                    ? "bg-blue-600 text-white"
-                    : "bg-green-100 text-green-800"
-                }`}
+                            ${
+                              isMainTopic
+                                ? "bg-blue-600 text-white"
+                                : "bg-green-100 text-green-800"
+                            }`}
                           >
                             {index + 1}
                           </div>
 
-                          {/* Tarjeta del tema */}
                           <div
                             className={`flex-1 p-4 rounded-lg border ${
                               isMainTopic
                                 ? "border-blue-200 bg-blue-50"
                                 : "border-green-200 bg-green-50"
-                            } 
-                shadow-sm hover:shadow-md transition-shadow`}
+                            } shadow-sm hover:shadow-md transition-shadow`}
                           >
                             <h4 className="font-bold text-gray-800">
                               {topic?.name || topicId}
@@ -373,7 +440,6 @@ export default function LearnPath() {
                                 : "Tema relacionado"}
                             </p>
 
-                            {/* Acciones */}
                             <div className="mt-3 flex gap-2">
                               <button
                                 onClick={() =>
@@ -392,7 +458,6 @@ export default function LearnPath() {
                             </div>
                           </div>
 
-                          {/* Flecha (excepto para el último elemento) */}
                           {!isLast && (
                             <div className="absolute left-9 top-14 transform -translate-x-1/2 mt-5 text-gray-400">
                               <svg

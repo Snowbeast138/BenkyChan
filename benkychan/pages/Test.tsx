@@ -16,12 +16,11 @@ import React from "react";
  */
 export default function Test() {
   return (
-    // Contenedor principal: 
+    // Contenedor principal:
     // - Ocupa toda la altura de la pantalla (h-screen)
     // - Fondo gris claro (bg-gray-100)
     // - Centrado vertical y horizontalmente (flex + items-center + justify-center)
     <div className="flex items-center justify-center h-screen bg-gray-100">
-      
       {/* Texto "Hello World" con estilos: 
           - Texto blanco en negrita (text-white + font-bold)
           - Tamaño de texto 3xl (text-3xl ~ 1.875rem)

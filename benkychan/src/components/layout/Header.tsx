@@ -1,3 +1,22 @@
+/**
+ * Componente Header - Cabecera principal de la aplicación
+ * 
+ * Muestra el logotipo de la aplicación (icono de premio con el nombre BenkyChan),
+ * el eslogan "Aprende a Aprender" y el botón de cierre de sesión.
+ * 
+ * Características:
+ * - Diseño responsive que se adapta a móvil/escritorio (flex-col en móvil, flex-row en escritorio)
+ * - Icono de premio (FiAward) de react-icons con fondo azul
+ * - Tipografía destacada para el nombre de la aplicación
+ * - Integra el componente LogoutButton para la gestión de sesión
+ * 
+ * Estilos Tailwind CSS:
+ * - Diseño flex con diferentes direcciones según breakpoint (flex-col md:flex-row)
+ * - Espaciado responsive (gap-4, mb-8)
+ * - Colores corporativos (blue-600, blue-800, gray-600)
+ * - Padding y bordes redondeados para el icono (p-2, rounded-lg)
+ * - Tipografía (text-3xl, font-bold)
+ */
 import { FiAward } from "react-icons/fi";
 import { LogoutButton } from "../auth/LogoutButton";
 

@@ -1,26 +1,44 @@
+/* Importación de Tailwind CSS como framework de estilos */
 @import "tailwindcss";
 
+/*
+  Definición de variables CSS en el elemento :root (nivel más alto del DOM)
+  Estas variables son accesibles desde cualquier parte del CSS
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #ffffff;     /* Color de fondo claro por defecto */
+  --foreground: #171717;    /* Color de texto oscuro por defecto */
 }
 
+/*
+  @theme inline - Define un tema personalizado usando las variables anteriores
+  Esto es específico de algunas implementaciones de CSS (como Panda CSS)
+*/
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);  /* Asigna el fondo del tema */
+  --color-foreground: var(--foreground);  /* Asigna el color de texto del tema */
+  --font-sans: var(--font-geist-sans);    /* Fuente sans-serif personalizada */
+  --font-mono: var(--font-geist-mono);    /* Fuente monoespaciada personalizada */
 }
 
+/*
+  Media query para detectar preferencia de color oscuro del sistema/usuario
+  Sobrescribe las variables de color cuando el sistema está en modo oscuro
+*/
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0a0a0a;  /* Fondo oscuro para modo oscuro */
+    --foreground: #ededed;  /* Texto claro para modo oscuro */
   }
 }
 
+/*
+  Estilos base aplicados al elemento body del documento:
+  - Usa las variables CSS para colores (que cambian según el modo claro/oscuro)
+  - Establece una fuente de respaldo (fallback) genérica
+*/
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--background);     /* Color de fondo usando variable */
+  color: var(--foreground);          /* Color de texto usando variable */
+  font-family: Arial, Helvetica, sans-serif;  /* Familia de fuentes de respaldo */
 }

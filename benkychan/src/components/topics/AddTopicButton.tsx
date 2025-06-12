@@ -1,45 +1,37 @@
+// Importa el componente Link de Next.js para habilitar la navegación entre páginas
 import Link from "next/link";
-import { FiPlus } from "react-icons/fi";
-
-export const AddTopicButton = () => {
-  return (
-    <Link href="/add-topic">
-      <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-        <FiPlus />
-        Añadir Tema
-      </button>
-    </Link>
-  );
-};
-import Link from "next/link";
+// Importa el icono FiPlus (Plus de Feather Icons) de react-icons
 import { FiPlus } from "react-icons/fi";
 
 /**
- * AddTopicButton Component
+ * Componente AddTopicButton
  * 
- * Un botón reutilizable que redirige a la página de añadir nuevo tema.
+ * Este componente renderiza un botón que redirige a la página de añadir temas.
+ * Utiliza el componente Link de Next.js para una navegación client-side eficiente.
+ * El botón tiene estilos consistentes con un diseño moderno y feedback visual al hacer hover.
  * 
- * Características:
- * - Utiliza el componente Link de Next.js para navegación del lado del cliente
- * - Incluye un icono de plus (FiPlus) de react-icons
- * - Estilos con clases de Tailwind CSS para apariencia consistente
- * - Efecto hover para mejor feedback visual
+ * Props: No recibe propiedades
  * 
- * @returns {JSX.Element} Un botón clickeable que navega a /add-topic
+ * @returns {JSX.Element} - Retorna un botón estilizado con un icono de más y el texto "Añadir Tema"
  */
 export const AddTopicButton = () => {
   return (
-    <Link href="/add-topic" passHref legacyBehavior>
-      {/* Contenedor del botón con estilos Tailwind */}
-      <button 
-        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        aria-label="Añadir nuevo tema"  // Mejora accesibilidad
-      >
-        {/* Icono de plus */}
-        <FiPlus className="text-lg" />
-        
+    // Componente Link que envuelve el botón y define la ruta de destino (/add-topic)
+    <Link href="/add-topic">
+      {/* Botón con estilos Tailwind CSS que incluye:
+          - Diseño flex para alinear icono y texto
+          - Espaciado entre elementos (gap-2)
+          - Colores de fondo y texto (bg-blue-600, text-white)
+          - Padding horizontal y vertical (px-4, py-2)
+          - Bordes redondeados (rounded-lg)
+          - Efecto hover con cambio de color (hover:bg-blue-700)
+          - Transición suave para el cambio de color (transition-colors)
+      */}
+      <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+        {/* Icono de Plus (FiPlus) */}
+        <FiPlus />
         {/* Texto del botón */}
-        <span>Añadir Tema</span>
+        Añadir Tema
       </button>
     </Link>
   );

@@ -1,52 +1,35 @@
+// Define la interfaz para las propiedades del componente StatsCard
+interface StatsCardProps {
+  label: string;    // Texto descriptivo que aparece como etiqueta
+  value: string;    // Valor principal que se muestra en negrita
+}
+
 /**
- * StatsCard Component
+ * Componente StatsCard
  * 
- * A card component for displaying statistical information with a label and value.
+ * Muestra una tarjeta estadística con:
+ * - Una etiqueta descriptiva (pequeña y en color gris)
+ * - Un valor principal (en negrita y color gris oscuro)
  * 
- * Features:
- * - Clean, minimalist design with subtle border
- * - Responsive layout
- * - Semantic HTML structure
- * - Type-safe props
- * - Accessible markup
+ * Estilo:
+ * - Fondo blanco con bordes redondeados
+ * - Borde sutil gris claro
+ * - Padding interno para espaciado
  * 
- * Accessibility:
- * - Proper HTML structure using <dl>, <dt>, <dd>
- * - ARIA attributes where applicable
- * - Clear visual hierarchy
- * 
- * @param {Object} props - Component props
- * @param {string} props.label - The description label for the statistic
- * @param {string} props.value - The value to display
- * 
- * @example
- * <StatsCard label="Total Users" value="1,234" />
+ * @param {StatsCardProps} props - Propiedades del componente
+ * @param {string} props.label - Texto descriptivo de la métrica
+ * @param {string} props.value - Valor a mostrar de la métrica
+ * @returns {JSX.Element} - Tarjeta visual para mostrar estadísticas
  */
 export const StatsCard = ({ label, value }: StatsCardProps) => {
   return (
-    <div 
-      className="bg-white p-3 rounded-lg border border-gray-100 shadow-xs hover:shadow-sm transition-shadow"
-      role="group"
-      aria-label={`Statistic: ${label}`}
-    >
-      <dl className="space-y-1">
-        <dt className="text-xs font-medium text-gray-500">{label}</dt>
-        <dd className="text-2xl font-bold text-gray-800">{value}</dd>
-      </dl>
+    // Contenedor principal de la tarjeta con estilos base
+    <div className="bg-white p-3 rounded-lg border border-gray-100">
+      {/* Etiqueta descriptiva - texto pequeño y color gris */}
+      <p className="text-xs text-gray-500">{label}</p>
+      
+      {/* Valor principal - texto en negrita y color gris oscuro */}
+      <p className="font-bold text-gray-800">{value}</p>
     </div>
   );
 };
-
-interface StatsCardProps {
-  /**
-   * The description label for the statistic
-   * @example "Total Users"
-   */
-  label: string;
-  
-  /**
-   * The value to display
-   * @example "1,234"
-   */
-  value: string;
-}

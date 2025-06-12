@@ -1,46 +1,27 @@
 /**
- * LoadingSpinner Component
+ * Componente LoadingSpinner
  * 
- * A reusable animated loading spinner with customizable size.
+ * Muestra un spinner de carga animado con configuración de tamaño opcional.
+ * El spinner consiste en un círculo con un borde azul que gira continuamente.
  * 
- * Features:
- * - Pure CSS animation (no JavaScript animation libraries required)
- * - Customizable size via props
- * - Responsive by default (centered in parent container)
- * - Accessible for screen readers
- * - Single color (blue-500) that can be easily modified
- * 
- * Accessibility:
- * - Includes ARIA attributes for screen readers
- * - Properly announces loading state
- * 
- * @param {Object} props - Component props
- * @param {number} [props.size=10] - Size of the spinner in pixels
- * @returns {JSX.Element} Animated loading spinner element
+ * @param {Object} props - Propiedades del componente
+ * @param {number} [props.size=10] - Tamaño del spinner en píxeles (opcional, por defecto 10px)
+ * @returns {JSX.Element} - Spinner de carga animado centrado horizontalmente
  */
 export const LoadingSpinner = ({ size = 10 }: { size?: number }) => {
-  // Calculate border width relative to spinner size (approx 40% of size)
-  const borderWidth = Math.max(2, Math.floor(size * 0.4));
-
   return (
-    <div 
-      className="flex justify-center"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-    >
+    // Contenedor flex que centra el spinner horizontalmente
+    <div className="flex justify-center">
+      {/* Elemento del spinner con:
+          - Animación de rotación (animate-spin)
+          - Forma circular (rounded-full)
+          - Borde azul de 4px con un lado transparente para el efecto visual
+          - Tamaño configurable mediante props (style)
+      */}
       <div
-        className="animate-spin rounded-full border-blue-500 border-t-transparent"
-        style={{ 
-          width: `${size}px`, 
-          height: `${size}px`,
-          borderWidth: `${borderWidth}px`,
-        }}
-        aria-label="Cargando..."
-      >
-        {/* Hidden text for screen readers */}
-        <span className="sr-only">Cargando contenido...</span>
-      </div>
+        className="animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
+        style={{ width: `${size}px`, height: `${size}px` }}
+      ></div>
     </div>
   );
 };
